@@ -19,9 +19,13 @@
         </div>
 
         <nav class="sidebar-nav">
-          <a href="#" class="nav-link nav-link--active">
+          <a [routerLink]="'/dashboard/dashboard-main'" routerLinkActive="active" class="nav-link">
             <span class="material-symbols-outlined">dashboard</span>
             <p>Tableau de bord</p>
+          </a>
+          <a [routerLink]="'/dashboard/historique'" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-outlined">history</span>
+            <p>Historique</p>
           </a>
           <a href="#" class="nav-link">
             <span class="material-symbols-outlined">list_alt</span>
@@ -30,10 +34,6 @@
           <a href="#" class="nav-link">
             <span class="material-symbols-outlined">add_circle</span>
             <p>Enregistrement camion</p>
-          </a>
-          <a href="#" class="nav-link">
-            <span class="material-symbols-outlined">history</span>
-            <p>Historique</p>
           </a>
           <a href="#" class="nav-link">
             <span class="material-symbols-outlined">bar_chart</span>
@@ -82,140 +82,7 @@
 
         <!-- PAGE CONTENT -->
         <main class="page">
-          <!-- Heading -->
-          <div class="page-heading">
-            <div class="page-title-block">
-              <p class="page-title">Vue d'ensemble des entrepôts</p>
-              <p class="page-subtitle">
-                Bonjour, Jean. Bienvenue sur votre tableau de bord.
-              </p>
-            </div>
-
-            <button class="primary-button" type="button">
-              <span class="material-symbols-outlined">add</span>
-              <span>Nouvel enregistrement</span>
-            </button>
-          </div>
-
-          <!-- Filters -->
-          <div class="filter-row">
-            <button class="filter-chip" type="button">
-              <span>Filtrer par région</span>
-              <span class="material-symbols-outlined">expand_more</span>
-            </button>
-            <button class="filter-chip" type="button">
-              <span>Filtrer par site</span>
-              <span class="material-symbols-outlined">expand_more</span>
-            </button>
-          </div>
-
-          <!-- Warehouses Grid -->
-          <div class="warehouse-grid">
-            <article class="warehouse-card">
-              <div
-                class="warehouse-image"
-                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA0k-UMaCqeoDM6p25mbNdel1JpjnnJJNXm5CVjKEQ1I2wAcIFGjJ9-UlUVsPXfac_oyoZsZiVPC_q112u4Ppwb_miJ1Tl63n5ZuwPThP_wEO4-xvbMtD3wVyQ43ONqB2KWdGHfewtUBZtl5ZouaoWMl34e1mwRRjwjv5eXH2PTZcIvmLcUG_EnKAITio0Ss1hmJIcMuDWPmAAwMsXaAT86Wmehx6XVSkRvzF2vW6fCIccZLPTZDsCXC8gp5v5Kn6_EzV0glj5buZ7Z');"
-              ></div>
-              <div>
-                <p class="warehouse-name">Entrepôt Paris Nord</p>
-                <p class="warehouse-location">Gonesse, Île-de-France</p>
-                <div class="warehouse-stats">
-                  <p>En attente: <span>12</span></p>
-                  <p>En cours: <span>5</span></p>
-                  <p>Déchargés: <span>45</span></p>
-                </div>
-              </div>
-            </article>
-
-            <article class="warehouse-card">
-              <div
-                class="warehouse-image"
-                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAl6UTGFPudQ7Xw_KL-FLsUY4fF6xF9auoEoHQi8bYObkkQ1lp94ptnTdgDRbV1rIzWagetFC2uQ8PWUn0Mz6nUn-Y3VcsRNC79MSDmqe4uDzjCp7HPyd13Ymk1mMekEowDgJAAplDxHIVvALpovHo3VOkXIsJGMqJvwklhNj8_yMBV2OIKGozLkeDEx4xy7Jj2OExxyeRXLMYLckZ3ghjfCblPH1sflv8i_cFzNKXv2y8Gzokpi-kzB-8EqApLJhw3CETMEoHmq1mc');"
-              ></div>
-              <div>
-                <p class="warehouse-name">Entrepôt Lyon Sud</p>
-                <p class="warehouse-location">
-                  Corbas, Auvergne-Rhône-Alpes
-                </p>
-                <div class="warehouse-stats">
-                  <p>En attente: <span>8</span></p>
-                  <p>En cours: <span>3</span></p>
-                  <p>Déchargés: <span>32</span></p>
-                </div>
-              </div>
-            </article>
-
-            <article class="warehouse-card">
-              <div
-                class="warehouse-image"
-                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB5vXhdDaZ3KlPhTX7NAZr8dqjE7pjX5ad7xglcR2wIO_ES8ypYBk5GcmeL0-0xHR3IhkrC4dmKVqP0II1yrulrbS_zP_o4fXAEJ_VrlWVp85flgXEJrol_I6Kv4-ta-PP4-iVPyRiXQymCJUG-cMBORY9epNIUuVUQfYFuqrYkJLt1_1kh2Pit1ShiqI-pOYMPs33BadfQWl1MOVvwWzSq8pILk52msiJ014drKfI-Nh5Jg5JOJpIZaATcD7Daa0T1dotwp51gXwnz');"
-              ></div>
-              <div>
-                <p class="warehouse-name">Entrepôt Marseille Est</p>
-                <p class="warehouse-location">
-                  La Penne-sur-Huveaune, PACA
-                </p>
-                <div class="warehouse-stats">
-                  <p>En attente: <span>15</span></p>
-                  <p>En cours: <span>8</span></p>
-                  <p>Déchargés: <span>60</span></p>
-                </div>
-              </div>
-            </article>
-
-            <article class="warehouse-card">
-              <div
-                class="warehouse-image"
-                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBr93ZNx5O8Yw9c-VikkIm6PuwR2phOXiTZEmmA6vFIs56SRaI13Rn7gL3gqI40QwFZ3A6HrnM4COT0K6OltDqsvERiomQ3TYmOBpQTY_vo35yghQ9MGtL-QFF7lKMbNtuGAtUiVy3xsFOLvBc3KjLpPua-JEEHz0p8Xl0ogSo7mj1sqZpvtJRA1mj0LXYthSikyC3a5X8h0bz8NE1Z8HfD8oQhHpNpVFjJSZWMC10eAoLLT_l2gLWgOzJ934Vdmt164lyYX8ebfAcr');"
-              ></div>
-              <div>
-                <p class="warehouse-name">Entrepôt Lille Ouest</p>
-                <p class="warehouse-location">Santes, Hauts-de-France</p>
-                <div class="warehouse-stats">
-                  <p>En attente: <span>5</span></p>
-                  <p>En cours: <span>2</span></p>
-                  <p>Déchargés: <span>28</span></p>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <!-- Chart -->
-          <section class="chart-card">
-            <h3 class="chart-title">
-              Volume de camions sur les 7 derniers jours
-            </h3>
-            <div class="chart-bars">
-              <div class="chart-day">
-                <p>Lun</p>
-                <div class="chart-bar" style="height: 60%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Mar</p>
-                <div class="chart-bar" style="height: 75%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Mer</p>
-                <div class="chart-bar" style="height: 50%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Jeu</p>
-                <div class="chart-bar" style="height: 85%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Ven</p>
-                <div class="chart-bar" style="height: 95%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Sam</p>
-                <div class="chart-bar" style="height: 40%"></div>
-              </div>
-              <div class="chart-day">
-                <p>Dim</p>
-                <div class="chart-bar" style="height: 20%"></div>
-              </div>
-            </div>
-          </section>
+          <router-outlet></router-outlet>
         </main>
       </div>
     </div>

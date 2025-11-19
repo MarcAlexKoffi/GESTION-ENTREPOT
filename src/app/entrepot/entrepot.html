@@ -1,1 +1,167 @@
-<p>entrepot works!</p>
+    <div class="pageMain">
+        <div class="page-root">
+      <div class="page-center">
+        <div class="page-shell">
+          <!-- HEADER -->
+          <header class="page-header">
+            <div class="page-title-block">
+              <p class="page-title">Entrepôt A</p>
+              <p class="page-subtitle">Lyon, France</p>
+            </div>
+            <button type="button" class="btn-back" [routerLink]="'/dashboard/dashboard-main'">
+              <span class="material-symbols-outlined">arrow_back</span>
+              <span class="truncate">Retour aux entrepôts</span>
+            </button>
+          </header>
+
+          <!-- STATS -->
+          <section class="stats-grid" aria-label="Statistiques de l'entrepôt">
+            <article class="stat-card">
+              <p class="stat-label">Camions arrivés aujourd'hui</p>
+              <p class="stat-value">65</p>
+            </article>
+            <article class="stat-card">
+              <p class="stat-label">En attente</p>
+              <p class="stat-value">12</p>
+            </article>
+            <article class="stat-card">
+              <p class="stat-label">En cours de déchargement</p>
+              <p class="stat-value">5</p>
+            </article>
+            <article class="stat-card">
+              <p class="stat-label">Déchargés aujourd'hui</p>
+              <p class="stat-value">48</p>
+            </article>
+          </section>
+
+          <!-- TOOLBAR -->
+          <section class="toolbar" aria-label="Filtres de recherche">
+            <div class="toolbar-left">
+              <div class="search-wrapper">
+                <div class="search-icon">
+                  <span class="material-symbols-outlined">search</span>
+                </div>
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Rechercher..."
+                />
+              </div>
+
+              <button type="button" class="filter-button">
+                <span class="material-symbols-outlined">calendar_today</span>
+                <span>Aujourd'hui</span>
+                <span class="material-symbols-outlined">arrow_drop_down</span>
+              </button>
+
+              <button type="button" class="filter-button">
+                <span class="material-symbols-outlined">filter_list</span>
+                <span>Statut</span>
+                <span class="material-symbols-outlined">arrow_drop_down</span>
+              </button>
+            </div>
+
+            <button type="button" class="btn-primary-main">
+              <span class="material-symbols-outlined">add</span>
+              <span>Enregistrer un camion</span>
+            </button>
+          </section>
+
+          <!-- MAIN CARD: TABS + TABLE -->
+          <section class="card" aria-label="Liste des camions">
+            <!-- Tabs -->
+            <div class="tabs-header">
+              <div class="tabs-row">
+                <a href="#" class="tab-link tab-link--active">
+                  <span>En attente</span>
+                  <span class="tab-pill">12</span>
+                </a>
+                <a href="#" class="tab-link tab-link--muted">
+                  <span>En cours de déchargement</span>
+                  <span class="tab-pill">5</span>
+                </a>
+                <a href="#" class="tab-link tab-link--muted">
+                  <span>Déchargés</span>
+                  <span class="tab-pill">48</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Immatriculation</th>
+                    <th>Transporteur</th>
+                    <th>Marchandise</th>
+                    <th>Heure d'arrivée</th>
+                    <th>Statut</th>
+                    <th class="cell-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="cell-main">AB-123-CD</td>
+                    <td class="cell-muted">Transporteur Express</td>
+                    <td class="cell-muted">Palettes</td>
+                    <td class="cell-muted">08:15</td>
+                    <td>
+                      <span class="status-badge">En attente</span>
+                    </td>
+                    <td class="cell-actions">
+                      <button type="button" class="link-action">
+                        Démarrer déchargement
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cell-main">EF-456-GH</td>
+                    <td class="cell-muted">Logistique Rapide</td>
+                    <td class="cell-muted">Vrac</td>
+                    <td class="cell-muted">08:05</td>
+                    <td>
+                      <span class="status-badge">En attente</span>
+                    </td>
+                    <td class="cell-actions">
+                      <button type="button" class="link-action">
+                        Démarrer déchargement
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cell-main">IJ-789-KL</td>
+                    <td class="cell-muted">Martin &amp; Fils</td>
+                    <td class="cell-muted">Colis</td>
+                    <td class="cell-muted">07:50</td>
+                    <td>
+                      <span class="status-badge">En attente</span>
+                    </td>
+                    <td class="cell-actions">
+                      <button type="button" class="link-action">
+                        Démarrer déchargement
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="cell-main">MN-012-OP</td>
+                    <td class="cell-muted">Transports du Sud</td>
+                    <td class="cell-muted">Produits frais</td>
+                    <td class="cell-muted">07:30</td>
+                    <td>
+                      <span class="status-badge">En attente</span>
+                    </td>
+                    <td class="cell-actions">
+                      <button type="button" class="link-action">
+                        Démarrer déchargement
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    </div>
