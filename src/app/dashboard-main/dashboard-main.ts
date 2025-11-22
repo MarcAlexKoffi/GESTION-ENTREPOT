@@ -13,6 +13,13 @@ interface CardInfo {
   discharged: number;
 }
 
+// Ce modèle correspond aux camions enregistrés dans localStorage ("trucks")
+interface StoredTruck {
+  id: number;
+  entrepotId: number;
+  statut: string;
+}
+
 @Component({
   selector: 'app-dashboard-main',
   standalone: true,
@@ -58,6 +65,9 @@ export class DashboardMain implements OnInit {
         console.error('Erreur de lecture du localStorage', e);
       }
     }
+
+    //  On recalcule les stats à partir des camions enregistrés
+  this.updateWarehouseStatsFromTrucks();
   }
 
   handleContanerClick(card: CardInfo) {
@@ -115,4 +125,52 @@ export class DashboardMain implements OnInit {
 
     this.closeWarehouseModal();
   }
+
+
+
+  // Recalcule les stats des entrepôts (pending / active / discharged)
+// à partir des camions présents dans localStorage ("trucks")
+private updateWarehouseStatsFromTrucks(): void {
+  const trucksSaved = localStorage.getItem('trucks');
+  if (!trucksSaved) {
+    // Aucun camion enregistré pour l'instant
+    return;
+  }
+
+  let allTrucks: StoredTruck[] = [];
+  try {
+    allTrucks = JSON.parse(trucksSaved);
+  } catch (e) {
+    console.error('Erreur de lecture du localStorage (trucks)', e);
+    return;
+  }
+
+  // Pour chaque carte, on recompte les camions par statut
+  this.cards = this.cards.map(card => {
+    const trucksForWarehouse = allTrucks.filter(
+      t => t.entrepotId === card.id
+    );
+
+    const pending = trucksForWarehouse.filter(
+      t => t.statut === 'En attente'
+    ).length;
+
+    const active = trucksForWarehouse.filter(
+      t => t.statut === 'En cours de déchargement'
+    ).length;
+
+    const discharged = trucksForWarehouse.filter(
+      t => t.statut === 'Déchargé'
+    ).length;
+
+    // On retourne une nouvelle carte avec les valeurs mises à jour
+    return {
+      ...card,
+      pending,
+      active,
+      discharged,
+    };
+  });
+}
+
 }

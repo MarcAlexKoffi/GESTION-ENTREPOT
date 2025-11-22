@@ -6,6 +6,7 @@ import { Historique } from './historique/historique';
 import { Entrepot } from './entrepot/entrepot';
 import { Register } from './register/register';
 import { Enregistrement } from './enregistrement/enregistrement';
+import { Statistique } from './statistique/statistique';
 
 export const routes: Routes = [
     {
@@ -16,7 +17,7 @@ export const routes: Routes = [
     {
         path: 'login',
         component: Login
-    },
+    },      
     {
         path: 'dashboard',
         component: Dashboard,
@@ -36,13 +37,11 @@ export const routes: Routes = [
             },
             {
                 path: 'entrepot',
-                component: Entrepot,
-                children: [
-                    {
-                        path: 'enregistrement',
-                        component: Enregistrement
-                    }
-                ]
+                component: Entrepot
+            },
+            {
+                path: 'statistique',
+                component: Statistique
             }
         ]
     },

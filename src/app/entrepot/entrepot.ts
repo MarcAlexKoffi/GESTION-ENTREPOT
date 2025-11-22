@@ -1,170 +1,234 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from "@angular/router";
+import { RouterLink } from '@angular/router';
+
+type TruckStatus =
+  | 'En attente'
+  | 'En cours de déchargement'
+  | 'Déchargé'
+  | 'Annulé';
 
 interface Truck {
   id: number;
-  entrepotId: number;      // à quel entrepôt il appartient
   immatriculation: string;
   transporteur: string;
   transfert: string;
-  marchandise: string;
+  kor: string;
+  statut: TruckStatus;
   heureArrivee: string;
-  statut: string;          // ex: "EN ATTENTE"
+  entrepotId: number;
+  createdAt: string;
 }
-
 
 @Component({
   selector: 'app-entrepot',
-  imports: [RouterModule, CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './entrepot.html',
   styleUrl: './entrepot.scss',
 })
-export class Entrepot implements OnInit {
-  entrepot: any = null;
-  showModal = false
-  showConfirm = false;  // pour afficher / cacher le cadre vert
+export class Entrepot {
+  // --- configuration / contexte entrepôt (à adapter plus tard avec la vraie donnée) ---
+  entrepot = {
+    id: 1,
+    nom: 'Entrepôt Sud Lyon',
+    lieu: 'Lyon, France',
+  };
 
+  // --- état UI ---
+  showModal = false;
+  showSuccessBanner = false;
+  lastSavedStatutLabel: string | null = null;
 
-  // Données en cours de saisie dans la modale
-  newTruck: Partial<Truck> = {
+  currentTab: 'pending' | 'inProgress' | 'done' | 'cancelled' = 'pending';
+
+  // --- liste des camions de cet entrepôt ---
+  trucks: Truck[] = [];
+
+  // --- formulaire du camion en cours de saisie ---
+  newTruck = {
     immatriculation: '',
     transporteur: '',
     transfert: '',
-    marchandise: '',
+    kor: '',
+    receptionStatus: 'Mise en attente' as 'Mise en attente' | 'Refouler',
   };
-  trucks: Truck[] = [];
-  // --- Statistiques calculées à partir des camions ---
 
-  // Nombre total de camions (pour aujourd'hui)
+  private readonly storageKey = 'trucks';
+
+  constructor() {
+    this.loadTrucksFromStorage();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gestion de la modale
+  // ---------------------------------------------------------------------------
+  openModal(): void {
+    this.showModal = true;
+    this.showSuccessBanner = false;
+    this.lastSavedStatutLabel = null;
+  }
+
+  closeModal(): void {
+    this.showModal = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Statistiques
+  // ---------------------------------------------------------------------------
   get totalCamionsArrives(): number {
     return this.trucks.length;
   }
 
-  // Nombre de camions "En attente"
   get nbEnAttente(): number {
     return this.trucks.filter((t) => t.statut === 'En attente').length;
   }
 
-  // Nombre de camions "En cours de déchargement"
   get nbEnCours(): number {
-    return this.trucks.filter((t) => t.statut === 'En cours de déchargement').length;
+    return this.trucks.filter(
+      (t) => t.statut === 'En cours de déchargement'
+    ).length;
   }
 
-  // Nombre de camions "Déchargé"
   get nbDecharges(): number {
     return this.trucks.filter((t) => t.statut === 'Déchargé').length;
   }
 
-private updateTruckStatus(truck: Truck, newStatus: string) {
-    truck.statut = newStatus;
+  get nbRefoules(): number {
+    // on stocke les refoulés avec le statut "Annulé"
+    return this.trucks.filter((t) => t.statut === 'Annulé').length;
+  }
 
-    // Mettre à jour dans le localStorage (tous entrepôts confondus)
-    const trucksSaved = localStorage.getItem('trucks');
-    if (!trucksSaved) return;
+  // ---------------------------------------------------------------------------
+  // Filtrage par onglet
+  // ---------------------------------------------------------------------------
+  setTab(tab: 'pending' | 'inProgress' | 'done' | 'cancelled'): void {
+    this.currentTab = tab;
+  }
 
-    const allTrucks: Truck[] = JSON.parse(trucksSaved);
-    const index = allTrucks.findIndex((t) => t.id === truck.id);
-    if (index !== -1) {
-      allTrucks[index].statut = newStatus;
-      localStorage.setItem('trucks', JSON.stringify(allTrucks));
+  get filteredTrucks(): Truck[] {
+    switch (this.currentTab) {
+      case 'pending':
+        return this.trucks.filter((t) => t.statut === 'En attente');
+      case 'inProgress':
+        return this.trucks.filter(
+          (t) => t.statut === 'En cours de déchargement'
+        );
+      case 'done':
+        return this.trucks.filter((t) => t.statut === 'Déchargé');
+      case 'cancelled':
+        return this.trucks.filter((t) => t.statut === 'Annulé');
+      default:
+        return this.trucks;
     }
   }
 
-  // Quand on clique sur "Démarrer déchargement"
-  startUnloading(truck: Truck) {
+  // ---------------------------------------------------------------------------
+  // Actions sur un camion
+  // ---------------------------------------------------------------------------
+  startUnloading(truck: Truck): void {
+    if (truck.statut !== 'En attente') {
+      return;
+    }
     this.updateTruckStatus(truck, 'En cours de déchargement');
   }
 
-  // Quand on clique sur "Marquer déchargé"
-  markAsDischarged(truck: Truck) {
+  markAsDischarged(truck: Truck): void {
+    if (truck.statut !== 'En cours de déchargement') {
+      return;
+    }
     this.updateTruckStatus(truck, 'Déchargé');
   }
 
-
-
-  openModal() {
-    this.showModal = true
-    this.showConfirm = false; // on cache le cadre vert à l'ouverture
+  private updateTruckStatus(truck: Truck, newStatus: TruckStatus): void {
+    truck.statut = newStatus;
+    this.saveTrucksToStorage();
   }
 
-  closeModal() {
-    this.showModal = false
-  }
-
-  ngOnInit(): void {
-    const saved = localStorage.getItem('selectedWarehouse');
-    if (saved) {
-      this.entrepot = JSON.parse(saved);
-      console.log('Entrepôt sélectionné :', this.entrepot);
-    }
-    // 2) Charger les camions depuis le localStorage
-    const trucksSaved = localStorage.getItem('trucks');
-    if (trucksSaved && this.entrepot?.id != null) {
-      const allTrucks: Truck[] = JSON.parse(trucksSaved);
-      // On ne garde que les camions de cet entrepôt
-      this.trucks = allTrucks.filter(
-        (t) => t.entrepotId === this.entrepot.id
-      );
-    }
-  }
-
-  saveTruck() {
-    if (!this.entrepot || this.entrepot.id == null) {
-      alert("Entrepôt introuvable.");
+  // ---------------------------------------------------------------------------
+  // Enregistrement d'un nouveau camion
+  // ---------------------------------------------------------------------------
+  saveTruck(): void {
+    if (!this.newTruck.immatriculation.trim()) {
       return;
     }
 
-    // Vérifications simples
-    if (!this.newTruck.immatriculation || !this.newTruck.transporteur || !this.newTruck.marchandise) {
-      alert("Merci de renseigner au moins l'immatriculation, le transporteur et la marchandise.");
-      return;
-    }
+    const statutCamion: TruckStatus =
+      this.newTruck.receptionStatus === 'Refouler'
+        ? 'Annulé'
+        : 'En attente';
 
-    // Heure actuelle HH:MM
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const heure = `${hh}:${mm}`;
+    const maintenant = new Date();
+    const heureArrivee = maintenant.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-    // Charger tous les camions existants (tous entrepôts)
-    const trucksSaved = localStorage.getItem('trucks');
-    const allTrucks: Truck[] = trucksSaved ? JSON.parse(trucksSaved) : [];
-
-    const nextId =
-      allTrucks.length > 0 ? allTrucks[allTrucks.length - 1].id + 1 : 1;
-
-    // Construire le camion à enregistrer
     const truck: Truck = {
-      id: nextId,
+      id: Date.now(),
+      immatriculation: this.newTruck.immatriculation.trim(),
+      transporteur: this.newTruck.transporteur.trim(),
+      transfert: this.newTruck.transfert.trim(),
+      kor: this.newTruck.kor.trim(),
+      statut: statutCamion,
+      heureArrivee,
       entrepotId: this.entrepot.id,
-      immatriculation: this.newTruck.immatriculation as string,
-      transporteur: this.newTruck.transporteur as string,
-      transfert: this.newTruck.transfert || '',
-      marchandise: this.newTruck.marchandise as string,
-      heureArrivee: heure,
-      statut: 'En attente',
+      createdAt: maintenant.toISOString(),
     };
 
-    // Ajouter au tableau global
-    allTrucks.push(truck);
-    localStorage.setItem('trucks', JSON.stringify(allTrucks));
+    this.trucks.push(truck);
+    this.saveTrucksToStorage();
 
-    // Rafraîchir la liste locale de CET entrepôt
-    this.trucks = allTrucks.filter(
-      (t) => t.entrepotId === this.entrepot.id
-    );
+    // mémorise le statut pour le bandeau de confirmation
+    this.lastSavedStatutLabel =
+      statutCamion === 'Annulé' ? 'REFOULÉ' : 'EN ATTENTE';
 
-    // Réinitialiser le formulaire
+    // réinitialisation du formulaire
     this.newTruck = {
       immatriculation: '',
       transporteur: '',
       transfert: '',
-      marchandise: '',
+      kor: '',
+      receptionStatus: 'Mise en attente',
     };
 
-    // Afficher le cadre vert
-    this.showConfirm = true;
+    this.showSuccessBanner = true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistance dans le localStorage
+  // ---------------------------------------------------------------------------
+  private loadTrucksFromStorage(): void {
+    const raw = localStorage.getItem(this.storageKey);
+    if (!raw) {
+      this.trucks = [];
+      return;
+    }
+
+    try {
+      const all: Truck[] = JSON.parse(raw);
+      this.trucks = all.filter((t) => t.entrepotId === this.entrepot.id);
+    } catch (e) {
+      console.error('Erreur de lecture du localStorage (trucks)', e);
+      this.trucks = [];
+    }
+  }
+
+  private saveTrucksToStorage(): void {
+    const raw = localStorage.getItem(this.storageKey);
+    let all: Truck[] = [];
+    if (raw) {
+      try {
+        all = JSON.parse(raw);
+      } catch {
+        all = [];
+      }
+    }
+
+    // on remplace tous les camions de cet entrepôt
+    all = all.filter((t) => t.entrepotId !== this.entrepot.id);
+    all.push(...this.trucks);
+
+    localStorage.setItem(this.storageKey, JSON.stringify(all));
   }
 }
