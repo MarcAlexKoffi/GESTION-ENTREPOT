@@ -5,6 +5,7 @@ import { DashboardMain } from './dashboard-main/dashboard-main';
 import { Historique } from './historique/historique';
 import { Entrepot } from './entrepot/entrepot';
 import { Register } from './register/register';
+import { Enregistrement } from './enregistrement/enregistrement';
 
 export const routes: Routes = [
     {
@@ -35,13 +36,23 @@ export const routes: Routes = [
             },
             {
                 path: 'entrepot',
-                component: Entrepot
+                component: Entrepot,
+                children: [
+                    {
+                        path: 'enregistrement',
+                        component: Enregistrement
+                    }
+                ]
             }
         ]
     },
     {
         path: 'register',
         component: Register
+    },
+    {
+        path: 'enregistrement',
+        component: Enregistrement
     }
-    
+
 ];

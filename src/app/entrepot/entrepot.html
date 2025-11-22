@@ -1,167 +1,235 @@
-    <div class="pageMain">
-        <div class="page-root">
-      <div class="page-center">
-        <div class="page-shell">
-          <!-- HEADER -->
-          <header class="page-header">
-            <div class="page-title-block">
-              <p class="page-title">Entrepôt A</p>
-              <p class="page-subtitle">Lyon, France</p>
-            </div>
-            <button type="button" class="btn-back" [routerLink]="'/dashboard/dashboard-main'">
-              <span class="material-symbols-outlined">arrow_back</span>
-              <span class="truncate">Retour aux entrepôts</span>
-            </button>
-          </header>
+<div class="pageMain">
+  <div class="page-root">
+    <div class="page-center">
+      <div class="page-shell">
+        <!-- HEADER -->
+        <header class="page-header">
+          <div class="page-title-block">
+            <p class="page-title">{{ entrepot?.name }}</p>
+            <p class="page-subtitle">{{ entrepot?.location }}</p>
+          </div>
+          <button type="button" class="btn-back" [routerLink]="'/dashboard/dashboard-main'">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span class="truncate">Retour aux entrepôts</span>
+          </button>
+        </header>
 
-          <!-- STATS -->
-          <section class="stats-grid" aria-label="Statistiques de l'entrepôt">
-            <article class="stat-card">
-              <p class="stat-label">Camions arrivés aujourd'hui</p>
-              <p class="stat-value">65</p>
-            </article>
-            <article class="stat-card">
-              <p class="stat-label">En attente</p>
-              <p class="stat-value">12</p>
-            </article>
-            <article class="stat-card">
-              <p class="stat-label">En cours de déchargement</p>
-              <p class="stat-value">5</p>
-            </article>
-            <article class="stat-card">
-              <p class="stat-label">Déchargés aujourd'hui</p>
-              <p class="stat-value">48</p>
-            </article>
-          </section>
+        <!-- STATS -->
+     <section class="stats-grid" aria-label="Statistiques de l'entrepôt">
+  <article class="stat-card">
+    <p class="stat-label">Camions arrivés aujourd'hui</p>
+    <p class="stat-value">{{ totalCamionsArrives }}</p>
+  </article>
+  <article class="stat-card">
+    <p class="stat-label">En attente</p>
+    <p class="stat-value">{{ nbEnAttente }}</p>
+  </article>
+  <article class="stat-card">
+    <p class="stat-label">En cours de déchargement</p>
+    <p class="stat-value">{{ nbEnCours }}</p>
+  </article>
+  <article class="stat-card">
+    <p class="stat-label">Déchargés aujourd'hui</p>
+    <p class="stat-value">{{ nbDecharges }}</p>
+  </article>
+</section>
 
-          <!-- TOOLBAR -->
-          <section class="toolbar" aria-label="Filtres de recherche">
-            <div class="toolbar-left">
-              <div class="search-wrapper">
-                <div class="search-icon">
-                  <span class="material-symbols-outlined">search</span>
-                </div>
-                <input
-                  type="text"
-                  class="search-input"
-                  placeholder="Rechercher..."
-                />
+
+
+        <!-- TOOLBAR -->
+        <section class="toolbar" aria-label="Filtres de recherche">
+          <div class="toolbar-left">
+            <div class="search-wrapper">
+              <div class="search-icon">
+                <span class="material-symbols-outlined">search</span>
               </div>
-
-              <button type="button" class="filter-button">
-                <span class="material-symbols-outlined">calendar_today</span>
-                <span>Aujourd'hui</span>
-                <span class="material-symbols-outlined">arrow_drop_down</span>
-              </button>
-
-              <button type="button" class="filter-button">
-                <span class="material-symbols-outlined">filter_list</span>
-                <span>Statut</span>
-                <span class="material-symbols-outlined">arrow_drop_down</span>
-              </button>
+              <input type="text" class="search-input" placeholder="Rechercher..." />
             </div>
 
-            <button type="button" class="btn-primary-main">
-              <span class="material-symbols-outlined">add</span>
-              <span>Enregistrer un camion</span>
+            <button type="button" class="filter-button">
+              <span class="material-symbols-outlined">calendar_today</span>
+              <span>Aujourd'hui</span>
+              <span class="material-symbols-outlined">arrow_drop_down</span>
             </button>
-          </section>
 
-          <!-- MAIN CARD: TABS + TABLE -->
-          <section class="card" aria-label="Liste des camions">
-            <!-- Tabs -->
-            <div class="tabs-header">
-              <div class="tabs-row">
-                <a href="#" class="tab-link tab-link--active">
-                  <span>En attente</span>
-                  <span class="tab-pill">12</span>
-                </a>
-                <a href="#" class="tab-link tab-link--muted">
-                  <span>En cours de déchargement</span>
-                  <span class="tab-pill">5</span>
-                </a>
-                <a href="#" class="tab-link tab-link--muted">
-                  <span>Déchargés</span>
-                  <span class="tab-pill">48</span>
-                </a>
-              </div>
-            </div>
+            <button type="button" class="filter-button">
+              <span class="material-symbols-outlined">filter_list</span>
+              <span>Statut</span>
+              <span class="material-symbols-outlined">arrow_drop_down</span>
+            </button>
+          </div>
 
-            <!-- Table -->
-            <div class="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Immatriculation</th>
-                    <th>Transporteur</th>
-                    <th>Marchandise</th>
-                    <th>Heure d'arrivée</th>
-                    <th>Statut</th>
-                    <th class="cell-actions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="cell-main">AB-123-CD</td>
-                    <td class="cell-muted">Transporteur Express</td>
-                    <td class="cell-muted">Palettes</td>
-                    <td class="cell-muted">08:15</td>
-                    <td>
-                      <span class="status-badge">En attente</span>
-                    </td>
-                    <td class="cell-actions">
-                      <button type="button" class="link-action">
-                        Démarrer déchargement
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="cell-main">EF-456-GH</td>
-                    <td class="cell-muted">Logistique Rapide</td>
-                    <td class="cell-muted">Vrac</td>
-                    <td class="cell-muted">08:05</td>
-                    <td>
-                      <span class="status-badge">En attente</span>
-                    </td>
-                    <td class="cell-actions">
-                      <button type="button" class="link-action">
-                        Démarrer déchargement
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="cell-main">IJ-789-KL</td>
-                    <td class="cell-muted">Martin &amp; Fils</td>
-                    <td class="cell-muted">Colis</td>
-                    <td class="cell-muted">07:50</td>
-                    <td>
-                      <span class="status-badge">En attente</span>
-                    </td>
-                    <td class="cell-actions">
-                      <button type="button" class="link-action">
-                        Démarrer déchargement
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="cell-main">MN-012-OP</td>
-                    <td class="cell-muted">Transports du Sud</td>
-                    <td class="cell-muted">Produits frais</td>
-                    <td class="cell-muted">07:30</td>
-                    <td>
-                      <span class="status-badge">En attente</span>
-                    </td>
-                    <td class="cell-actions">
-                      <button type="button" class="link-action">
-                        Démarrer déchargement
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
+          <button type="button" class="btn-primary-main" (click)="openModal()">
+            <span class="material-symbols-outlined">add</span>
+            <span>Enregistrer un camion</span>
+          </button>
+        </section>
+
+        <!-- MAIN CARD: TABS + TABLE -->
+        <section class="card" aria-label="Liste des camions">
+          <!-- Tabs -->
+         <div class="tabs-header">
+  <div class="tabs-row">
+    <a href="#" class="tab-link tab-link--active">
+      <span>En attente</span>
+      <span class="tab-pill">{{ nbEnAttente }}</span>
+    </a>
+    <a href="#" class="tab-link tab-link--muted">
+      <span>En cours de déchargement</span>
+      <span class="tab-pill">{{ nbEnCours }}</span>
+    </a>
+    <a href="#" class="tab-link tab-link--muted">
+      <span>Déchargés</span>
+      <span class="tab-pill">{{ nbDecharges }}</span>
+    </a>
+  </div>
+</div>
+
+
+          <!-- Table -->
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Immatriculation</th>
+                  <th>Transporteur</th>
+                  <th>N° Fiche de transfert</th>
+                  <th>Marchandise</th>
+                  <th>Heure d'arrivée</th>
+                  <th>Statut</th>
+                  <th class="cell-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let t of trucks">
+                  <td class="cell-main">{{ t.immatriculation }}</td>
+                  <td class="cell-muted">{{ t.transporteur }}</td>
+                  <td>{{ t.transfert }}</td>
+                  <td class="cell-muted">{{ t.marchandise }}</td>
+                  <td class="cell-muted">{{ t.heureArrivee }}</td>
+                  <td>
+                    <span class="status-badge">{{ t.statut }}</span>
+                  </td>
+                  <td class="cell-actions">
+  <ng-container [ngSwitch]="t.statut">
+    <!-- Camion en attente -->
+    <button
+      *ngSwitchCase="'En attente'"
+      type="button"
+      class="link-action"
+      (click)="startUnloading(t)"
+    >
+      Démarrer déchargement
+    </button>
+
+    <!-- Camion en cours de déchargement -->
+    <button
+      *ngSwitchCase="'En cours de déchargement'"
+      type="button"
+      class="link-action"
+      (click)="markAsDischarged(t)"
+    >
+      Marquer déchargé
+    </button>
+
+    <!-- Camion déjà déchargé -->
+    <span *ngSwitchCase="'Déchargé'" class="cell-muted">
+      Terminé
+    </span>
+  </ng-container>
+</td>
+
+                </tr>
+                <!-- Ligne affichée si aucun camion -->
+                <tr *ngIf="trucks.length === 0">
+                  <td colspan="7" class="cell-muted">
+                    Aucun camion enregistré pour le moment.
+                  </td>
+                </tr>
+              </tbody>
+
+            </table>
+          </div>
+        </section>
       </div>
     </div>
+  </div>
+</div>
+<div class="modal" *ngIf="showModal">
+  <div class="modal__backdrop"></div>
+
+  <div class="modal__panel truck-modal">
+    <div class="truck-modal-header">
+      <h2 class="truck-modal-title">Enregistrer un nouveau camion</h2>
+      <button type="button" class="truck-modal-close" (click)="closeModal()" aria-label="Fermer">
+        <span class="material-symbols-outlined">close</span>
+      </button>
     </div>
+
+    <div class="truck-modal-body">
+      <div class="truck-field">
+        <label class="truck-label" for="entrepot">Entrepôt</label>
+        <select id="entrepot" class="truck-select" disabled>
+          <option selected>{{ entrepot?.name }}</option>
+        </select>
+
+      </div>
+
+      <!-- Immatriculation -->
+      <div class="truck-field">
+        <label class="truck-label" for="immatriculation">
+          Immatriculation du camion
+        </label>
+        <input id="immatriculation" type="text" class="truck-input" placeholder="Ex : AB-123-CD"
+          [(ngModel)]="newTruck.immatriculation" name="immatriculation" />
+      </div>
+
+      <!-- Transporteur -->
+      <div class="truck-field">
+        <label class="truck-label" for="transporteur">
+          Transporteur / Chauffeur
+        </label>
+        <input id="transporteur" type="text" class="truck-input" placeholder="Nom du transporteur ou du chauffeur"
+          [(ngModel)]="newTruck.transporteur" name="transporteur" />
+      </div>
+
+      <!-- N° fiche de transfert -->
+      <div class="truck-field">
+        <label class="truck-label" for="transfert">N° fiche de transfert</label>
+        <input id="transfert" type="text" class="truck-input" placeholder="Ex : FT-2025-001"
+          [(ngModel)]="newTruck.transfert" name="transfert" />
+      </div>
+
+      <!-- Type de marchandise -->
+      <div class="truck-field">
+        <label class="truck-label" for="marchandise">Type de marchandise</label>
+        <select id="marchandise" class="truck-select" [(ngModel)]="newTruck.marchandise" name="marchandise">
+          <option value="" disabled selected>Choisir un type</option>
+          <option value="Palettes">Palettes</option>
+          <option value="Vrac">Vrac</option>
+          <option value="Colis">Colis</option>
+          <option value="Produits frais">Produits frais</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="truck-modal-footer">
+      <div class="truck-confirm" *ngIf="showConfirm">
+        <span class="material-symbols-outlined truck-confirm-icon">
+          check_circle
+        </span>
+        <div>
+          <p class="truck-confirm-title">Camion enregistré</p>
+          <p class="truck-confirm-sub">Statut : EN ATTENTE</p>
+        </div>
+      </div>
+
+
+      <button type="button" class="truck-submit" (click)="saveTruck()">
+        Enregistrer l’arrivée
+      </button>
+
+    </div>
+  </div>
+</div>
