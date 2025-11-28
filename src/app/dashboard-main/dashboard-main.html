@@ -3,9 +3,7 @@
   <div class="page-heading">
     <div class="page-title-block">
       <p class="page-title">Vue d'ensemble des entrepôts</p>
-      <p class="page-subtitle">
-        Bonjour, Jean. Bienvenue sur votre tableau de bord.
-      </p>
+      <p class="page-subtitle">Bonjour, Marc. Bienvenue sur votre tableau de bord.</p>
     </div>
 
     <button class="primary-button" type="button" (click)="openWarehouseModal()">
@@ -28,7 +26,26 @@
 
   <!-- Warehouses Grid -->
   <div class="warehouse-grid">
-    <article *ngFor="let card of cards;" class="warehouse-card" (click)="handleContanerClick(card)">
+    <article *ngFor="let card of cards" class="warehouse-card" (click)="handleContanerClick(card)">
+      <div class="warehouse-card-header">
+        <!-- Bouton menu : -->
+        <button
+          class="Warehouse-card-menu-button"
+          type="button"
+          (click)="openActionsMenu(card, $event)"
+        >
+          <span class="material-symbols-outlined">more_vert</span>
+        </button>
+        <!-- Menu déroulant -->
+        <div
+          class="warehouse-card-menu"
+          *ngIf="actionsMenuWarehouseId === card.id"
+          (click)="$event.stopPropagation()"
+        >
+          <button class="" type="button" (click)="onEditWarehouse(card)">Modifier</button>
+          <button class="" type="button" (click)="onDeleteWarehouse(card)">Supprimer</button>
+        </div>
+      </div>
       <div class="warehouse-image" style="background-image: url('{{ card.imageUrl }}');"></div>
       <div>
         <p class="warehouse-name">{{ card.name }}</p>
@@ -36,9 +53,15 @@
           {{ card.location }}
         </p>
         <div class="warehouse-stats">
-          <p>En attente: <span>{{ card.pending }}</span></p>
-          <p>En cours: <span>{{ card.active }}</span></p>
-          <p>Déchargés: <span>{{ card.discharged }}</span></p>
+          <p>
+            En attente: <span>{{ card.pending }}</span>
+          </p>
+          <p>
+            En cours: <span>{{ card.active }}</span>
+          </p>
+          <p>
+            Déchargés: <span>{{ card.discharged }}</span>
+          </p>
         </div>
       </div>
     </article>
@@ -46,9 +69,7 @@
 
   <!-- Chart -->
   <section class="chart-card">
-    <h3 class="chart-title">
-      Volume de camions sur les 7 derniers jours
-    </h3>
+    <h3 class="chart-title">Volume de camions sur les 7 derniers jours</h3>
     <div class="chart-bars">
       <div class="chart-day">
         <p>Lun</p>
@@ -90,7 +111,12 @@
       <!-- En-tête -->
       <div class="warehouse-modal__header">
         <h2 class="warehouse-modal__title">Nouvel entrepôt</h2>
-        <button type="button" class="warehouse-modal__close" aria-label="Fermer" (click)="closeWarehouseModal()">
+        <button
+          type="button"
+          class="warehouse-modal__close"
+          aria-label="Fermer"
+          (click)="closeWarehouseModal()"
+        >
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
@@ -103,71 +129,96 @@
 
         <!-- Nom -->
         <div class="warehouse-field">
-          <label class="warehouse-label" for="wh-name">
-            Nom de l’entrepôt
-          </label>
-          <input id="wh-name" type="text" class="warehouse-input" placeholder="Ex : Entrepôt Paris Nord"
-            [(ngModel)]="newWarehouse.name" />
+          <label class="warehouse-label" for="wh-name"> Nom de l’entrepôt </label>
+          <input
+            id="wh-name"
+            type="text"
+            class="warehouse-input"
+            placeholder="Ex : Entrepôt Paris Nord"
+            [(ngModel)]="newWarehouse.name"
+          />
         </div>
 
         <!-- Localisation -->
         <div class="warehouse-field">
-          <label class="warehouse-label" for="wh-location">
-            Localisation
-          </label>
-          <input id="wh-location" type="text" class="warehouse-input" placeholder="Ex : Gonesse, Île-de-France"
-            [(ngModel)]="newWarehouse.location" />
+          <label class="warehouse-label" for="wh-location"> Localisation </label>
+          <input
+            id="wh-location"
+            type="text"
+            class="warehouse-input"
+            placeholder="Ex : Gonesse, Île-de-France"
+            [(ngModel)]="newWarehouse.location"
+          />
         </div>
 
         <!-- Image (URL) -->
         <div class="warehouse-field">
-          <label class="warehouse-label" for="wh-image">
-            Image de couverture (URL d’image)
-          </label>
-          <input id="wh-image" type="text" class="warehouse-input" placeholder="Collez ici un lien vers une image"
-            [(ngModel)]="newWarehouse.imageUrl" />
+          <label class="warehouse-label" for="wh-image"> Image de couverture (URL d’image) </label>
+          <input
+            id="wh-image"
+            type="text"
+            class="warehouse-input"
+            placeholder="Collez ici un lien vers une image"
+            [(ngModel)]="newWarehouse.imageUrl"
+          />
           <p class="warehouse-help">
-            Vous pouvez utiliser une image hébergée (par exemple un lien
-            d’illustration de vos entrepôts).
+            Vous pouvez utiliser une image hébergée (par exemple un lien d’illustration de vos
+            entrepôts).
           </p>
         </div>
 
         <!-- Statistiques de départ (optionnel) -->
         <div class="warehouse-modal__grid">
           <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-pending">
-              En attente (facultatif)
-            </label>
-            <input id="wh-pending" type="number" class="warehouse-input" [(ngModel)]="newWarehouse.pending" />
+            <label class="warehouse-label" for="wh-pending"> En attente (facultatif) </label>
+            <input
+              id="wh-pending"
+              type="number"
+              class="warehouse-input"
+              [(ngModel)]="newWarehouse.pending"
+            />
           </div>
 
           <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-active">
-              En cours (facultatif)
-            </label>
-            <input id="wh-active" type="number" class="warehouse-input" [(ngModel)]="newWarehouse.active" />
+            <label class="warehouse-label" for="wh-active"> En cours (facultatif) </label>
+            <input
+              id="wh-active"
+              type="number"
+              class="warehouse-input"
+              [(ngModel)]="newWarehouse.active"
+            />
           </div>
 
           <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-discharged">
-              Déchargés (facultatif)
-            </label>
-            <input id="wh-discharged" type="number" class="warehouse-input" [(ngModel)]="newWarehouse.discharged" />
+            <label class="warehouse-label" for="wh-discharged"> Déchargés (facultatif) </label>
+            <input
+              id="wh-discharged"
+              type="number"
+              class="warehouse-input"
+              [(ngModel)]="newWarehouse.discharged"
+            />
           </div>
         </div>
       </div>
 
       <!-- Pied de la modale -->
       <div class="warehouse-modal__footer">
-        <button type="button" class="warehouse-button warehouse-button--ghost" (click)="closeWarehouseModal()">
+        <button
+          type="button"
+          class="warehouse-button warehouse-button--ghost"
+          (click)="closeWarehouseModal()"
+        >
           Annuler
         </button>
 
-        <button type="button" class="warehouse-button warehouse-button--primary" (click)="saveWarehouse()">
+        <button
+          type="button"
+          class="warehouse-button warehouse-button--primary"
+          (click)="saveWarehouse()"
+        >
           Créer l’entrepôt
         </button>
       </div>
     </div>
   </div>
-
 </div>

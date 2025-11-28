@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 type TruckStatus =
   | 'En attente'
@@ -21,31 +21,39 @@ interface Truck {
   createdAt: string;
 }
 
+// structure minimale des entrepôts stockés dans localStorage
+interface StoredWarehouse {
+  id: number;
+  name: string;
+  location: string;
+}
+
 @Component({
   selector: 'app-entrepot',
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './entrepot.html',
   styleUrl: './entrepot.scss',
 })
-export class Entrepot {
-  // --- configuration / contexte entrepôt (à adapter plus tard avec la vraie donnée) ---
+export class Entrepot implements OnInit {
+  // Entrepôt courant (utilisé dans le template)
   entrepot = {
-    id: 1,
-    nom: 'Entrepôt Sud Lyon',
-    lieu: 'Lyon, France',
+    id: 0,
+    nom: '',
+    lieu: '',
   };
 
-  // --- état UI ---
+  // état UI
   showModal = false;
   showSuccessBanner = false;
   lastSavedStatutLabel: string | null = null;
 
   currentTab: 'pending' | 'inProgress' | 'done' | 'cancelled' = 'pending';
 
-  // --- liste des camions de cet entrepôt ---
+  // liste des camions de CET entrepôt
   trucks: Truck[] = [];
 
-  // --- formulaire du camion en cours de saisie ---
+  // formulaire camion
   newTruck = {
     immatriculation: '',
     transporteur: '',
@@ -56,7 +64,46 @@ export class Entrepot {
 
   private readonly storageKey = 'trucks';
 
-  constructor() {
+  constructor(private route: ActivatedRoute) {}
+
+  ngOnInit(): void {
+    // 1) Récupérer l'id depuis l'URL
+    const idParam = Number(this.route.snapshot.paramMap.get('id'));
+
+    // 2) Charger la liste des entrepôts
+    let warehouses: StoredWarehouse[] = [];
+
+    const saved = localStorage.getItem('warehouses');
+    if (saved) {
+      try {
+        warehouses = JSON.parse(saved);
+      } catch (e) {
+        console.error('Erreur de lecture du localStorage (warehouses)', e);
+      }
+    }
+
+    // si rien en localStorage, on prévoit au moins un entrepôt par défaut
+    if (warehouses.length === 0) {
+      warehouses = [
+        {
+          id: 1,
+          name: 'Entrepôt Lyon Sud',
+          location: 'Corbas, Auvergne-Rhône-Alpes',
+        },
+      ];
+    }
+
+    // 3) Trouver l’entrepôt correspondant à l'id
+    const found =
+      warehouses.find((w) => w.id === idParam) ?? warehouses[0];
+
+    this.entrepot = {
+      id: found.id,
+      nom: found.name,
+      lieu: found.location,
+    };
+
+    // 4) Charger les camions de CET entrepôt
     this.loadTrucksFromStorage();
   }
 
@@ -95,7 +142,6 @@ export class Entrepot {
   }
 
   get nbRefoules(): number {
-    // on stocke les refoulés avec le statut "Annulé"
     return this.trucks.filter((t) => t.statut === 'Annulé').length;
   }
 
@@ -179,11 +225,9 @@ export class Entrepot {
     this.trucks.push(truck);
     this.saveTrucksToStorage();
 
-    // mémorise le statut pour le bandeau de confirmation
     this.lastSavedStatutLabel =
       statutCamion === 'Annulé' ? 'REFOULÉ' : 'EN ATTENTE';
 
-    // réinitialisation du formulaire
     this.newTruck = {
       immatriculation: '',
       transporteur: '',

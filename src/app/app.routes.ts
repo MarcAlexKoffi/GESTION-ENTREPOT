@@ -36,7 +36,7 @@ export const routes: Routes = [
                 component: Historique
             },
             {
-                path: 'entrepot',
+                path: 'entrepot/:id',
                 component: Entrepot
             },
             {
