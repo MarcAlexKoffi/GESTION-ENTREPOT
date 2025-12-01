@@ -2,6 +2,7 @@
   <div class="page-root">
     <div class="page-center">
       <div class="page-shell">
+
         <!-- HEADER -->
         <header class="page-header">
           <div class="page-title-block">
@@ -21,39 +22,34 @@
         <!-- STATS -->
         <section class="stats-grid" aria-label="Statistiques de l'entrepôt">
           <article class="stat-card">
-            <p class="stat-label">Camions arrivés aujourd'hui</p>
+            <p class="stat-label">Total camions</p>
             <p class="stat-value">{{ totalCamionsArrives }}</p>
           </article>
+
           <article class="stat-card">
-            <p class="stat-label">En attente</p>
-            <p class="stat-value">{{ nbEnAttente }}</p>
+            <p class="stat-label">En attente de validation</p>
+            <p class="stat-value">{{ nbPending }}</p>
           </article>
+
           <article class="stat-card">
-            <p class="stat-label">En cours de déchargement</p>
-            <p class="stat-value">{{ nbEnCours }}</p>
+            <p class="stat-label">Validés</p>
+            <p class="stat-value">{{ nbValidated }}</p>
           </article>
+
           <article class="stat-card">
-            <p class="stat-label">Déchargés aujourd'hui</p>
-            <p class="stat-value">{{ nbDecharges }}</p>
-          </article>
-          <article class="stat-card">
-            <p class="stat-label">Refoulés aujourd'hui</p>
-            <p class="stat-value">{{ nbRefoules }}</p>
+            <p class="stat-label">Refoulés</p>
+            <p class="stat-value">{{ nbCancelled }}</p>
           </article>
         </section>
 
         <!-- TOOLBAR -->
-        <section class="toolbar" aria-label="Filtres de recherche">
+        <section class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrapper">
               <div class="search-icon">
                 <span class="material-symbols-outlined">search</span>
               </div>
-              <input
-                type="text"
-                class="search-input"
-                placeholder="Rechercher..."
-              />
+              <input type="text" class="search-input" placeholder="Rechercher..." />
             </div>
 
             <button type="button" class="filter-button">
@@ -68,265 +64,182 @@
               <span class="material-symbols-outlined">arrow_drop_down</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            class="btn-primary-main"
-            (click)="openModal()"
-          >
-            <span class="material-symbols-outlined">add</span>
-            <span>Enregistrer un camion</span>
-          </button>
         </section>
 
-        <!-- MAIN CARD: TABS + TABLE -->
-        <section class="card" aria-label="Liste des camions">
-          <!-- Tabs -->
+        <!-- MAIN CARD -->
+        <section class="card">
+
+          <!-- TABS -->
           <div class="tabs-header">
             <div class="tabs-row">
-              <!-- EN ATTENTE -->
-              <a
-                href="#"
-                class="tab-link"
-                [class.tab-link--active]="currentTab === 'pending'"
-                [class.tab-link--muted]="currentTab !== 'pending'"
-                (click)="setTab('pending'); $event.preventDefault()"
-              >
-                <span>En attente</span>
-                <span class="tab-pill">{{ nbEnAttente }}</span>
+
+              <!-- EN ATTENTE DE VALIDATION -->
+              <a href="#"
+                 class="tab-link"
+                 [class.tab-link--active]="currentTab === 'pending'"
+                 [class.tab-link--muted]="currentTab !== 'pending'"
+                 (click)="setTab('pending'); $event.preventDefault()">
+                <span>En attente de validation</span>
+                <span class="tab-pill">{{ nbPending }}</span>
               </a>
 
-              <!-- EN COURS -->
-              <a
-                href="#"
-                class="tab-link"
-                [class.tab-link--active]="currentTab === 'inProgress'"
-                [class.tab-link--muted]="currentTab !== 'inProgress'"
-                (click)="setTab('inProgress'); $event.preventDefault()"
-              >
-                <span>En cours de déchargement</span>
-                <span class="tab-pill">{{ nbEnCours }}</span>
-              </a>
-
-              <!-- DÉCHARGÉS -->
-              <a
-                href="#"
-                class="tab-link"
-                [class.tab-link--active]="currentTab === 'done'"
-                [class.tab-link--muted]="currentTab !== 'done'"
-                (click)="setTab('done'); $event.preventDefault()"
-              >
-                <span>Déchargés</span>
-                <span class="tab-pill">{{ nbDecharges }}</span>
+              <!-- VALIDÉS -->
+              <a href="#"
+                 class="tab-link"
+                 [class.tab-link--active]="currentTab === 'validated'"
+                 [class.tab-link--muted]="currentTab !== 'validated'"
+                 (click)="setTab('validated'); $event.preventDefault()">
+                <span>Validés</span>
+                <span class="tab-pill">{{ nbValidated }}</span>
               </a>
 
               <!-- REFOULÉS -->
-              <a
-                href="#"
-                class="tab-link"
-                [class.tab-link--active]="currentTab === 'cancelled'"
-                [class.tab-link--muted]="currentTab !== 'cancelled'"
-                (click)="setTab('cancelled'); $event.preventDefault()"
-              >
+              <a href="#"
+                 class="tab-link"
+                 [class.tab-link--active]="currentTab === 'cancelled'"
+                 [class.tab-link--muted]="currentTab !== 'cancelled'"
+                 (click)="setTab('cancelled'); $event.preventDefault()">
                 <span>Refoulés</span>
-                <span class="tab-pill">{{ nbRefoules }}</span>
+                <span class="tab-pill">{{ nbCancelled }}</span>
               </a>
+
             </div>
           </div>
 
-          <!-- Table -->
+          <!-- TABLEAU CAMIONS -->
           <div class="table-wrapper">
             <table>
               <thead>
                 <tr>
                   <th>Immatriculation</th>
                   <th>Transporteur</th>
-                  <th>Heure d'enrégistrement</th>
+                  <th>Heure arrivée</th>
                   <th>Statut</th>
                   <th class="cell-actions">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
-                <!-- Aucun camion pour ce statut -->
+
+                <!-- Aucun camion -->
                 <tr *ngIf="filteredTrucks.length === 0">
                   <td colspan="6" class="cell-muted">
                     Aucun camion pour ce statut pour le moment.
                   </td>
                 </tr>
 
-                <!-- Liste des camions -->
+                <!-- Liste camions -->
                 <tr *ngFor="let t of filteredTrucks">
                   <td class="cell-main">{{ t.immatriculation }}</td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
                   <td class="cell-muted">{{ t.heureArrivee }}</td>
+
                   <td class="cell-status">
-                    <span
-                      *ngIf="t.statut === 'En attente'"
-                      class="status-pill status-pill--pending"
-                    >
-                      En attente
+
+                    <span *ngIf="t.statut === 'En attente'" class="status-pill status-pill--pending">
+                      En attente de validation
                     </span>
 
-                    <span
-                      *ngIf="t.statut === 'En cours de déchargement'"
-                      class="status-pill status-pill--active"
-                    >
-                      En cours de déchargement
+                    <span *ngIf="t.statut === 'Validé'" class="status-pill status-pill--active">
+                      Validé (en attente gérant)
                     </span>
 
-                    <span
-                      *ngIf="t.statut === 'Déchargé'"
-                      class="status-pill status-pill--done"
-                    >
-                      Déchargé
+                    <span *ngIf="t.statut === 'Annulé'" class="status-pill status-pill--cancelled">
+                      Refoulé
                     </span>
 
-                    <span
-                      *ngIf="t.statut === 'Annulé'"
-                      class="status-pill status-pill--cancelled"
-                    >
-                      Annulé
-                    </span>
                   </td>
+
                   <td class="cell-actions">
-                    <ng-container [ngSwitch]="t.statut">
-                      <!-- Actions possibles selon le statut -->
-                      <button
-                        *ngSwitchCase="'En attente'"
-                        type="button"
-                        class="link-action"
-                        (click)="startUnloading(t)"
-                      >
-                        Démarrer déchargement
-                      </button>
-
-                      <button
-                        *ngSwitchCase="'En cours de déchargement'"
-                        type="button"
-                        class="link-action"
-                        (click)="markAsDischarged(t)"
-                      >
-                        Marquer comme déchargé
-                      </button>
-
-                      <span *ngSwitchDefault class="cell-muted">—</span>
-                    </ng-container>
+                    <button type="button" class="link-action" (click)="openDetailsModal(t)">
+                      Voir plus
+                    </button>
                   </td>
                 </tr>
+
               </tbody>
             </table>
           </div>
+
         </section>
+
       </div>
     </div>
   </div>
 
-  <!-- MODALE ENREGISTREMENT CAMION -->
-  <div class="modal" *ngIf="showModal">
+  <!-- MODAL DETAILS ADMIN -->
+  <div class="modal" *ngIf="showDetailsModal">
     <div class="truck-modal">
+
       <div class="truck-modal-header">
-        <h2 class="truck-modal-title">Enregistrer un nouveau camion</h2>
-        <button
-          type="button"
-          class="truck-modal-close"
-          aria-label="Fermer"
-          (click)="closeModal()"
-        >
+        <h2 class="truck-modal-title">Détails du camion</h2>
+        <button type="button" class="truck-modal-close" aria-label="Fermer" (click)="closeDetailsModal()">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-        <!-- Entrepôt -->
+
         <div class="truck-field">
-          <label class="truck-label" for="entrepot">Entrepôt</label>
-          <select id="entrepot" class="truck-select" disabled>
-            <option selected>{{ entrepot.nom }}</option>
-          </select>
+          <label class="truck-label">Immatriculation</label>
+          <input class="truck-input" [value]="selectedTruck?.immatriculation" disabled />
         </div>
 
-        <!-- Immatriculation -->
         <div class="truck-field">
-          <label class="truck-label" for="immatriculation">
-            Immatriculation du camion
-          </label>
-          <input
-            id="immatriculation"
-            type="text"
-            class="truck-input"
-            placeholder="Ex : AB-123-CD"
-            [(ngModel)]="newTruck.immatriculation"
-            name="immatriculation"
-          />
+          <label class="truck-label">Transporteur</label>
+          <input class="truck-input" [value]="selectedTruck?.transporteur" disabled />
         </div>
 
-        <!-- Transporteur / Chauffeur -->
         <div class="truck-field">
-          <label class="truck-label" for="transporteur">
-            Transporteur / Chauffeur
-          </label>
-          <input
-            id="transporteur"
-            type="text"
-            class="truck-input"
-            placeholder="Nom du transporteur ou du chauffeur"
-            [(ngModel)]="newTruck.transporteur"
-            name="transporteur"
-          />
+          <label class="truck-label">Coopérative</label>
+          <input class="truck-input" [value]="selectedTruck?.coperative" disabled />
         </div>
 
-        <!-- N° de fiche de transfert -->
         <div class="truck-field">
-          <label class="truck-label" for="transfert">
-            N° fiche de transfert
-          </label>
-          <input
-            id="transfert"
-            type="text"
-            class="truck-input"
-            placeholder="Ex : FT-2025-001"
-            [(ngModel)]="newTruck.transfert"
-            name="transfert"
-          />
+          <label class="truck-label">Fiche Transfert</label>
+          <input class="truck-input" [value]="selectedTruck?.transfert" disabled />
         </div>
 
-        <!-- KOR -->
-
-        <!-- Statut -->
         <div class="truck-field">
-          <label class="truck-label" for="receptionStatus">Statut</label>
-          <select
-            id="receptionStatus"
-            class="truck-select"
-            [(ngModel)]="newTruck.receptionStatus"
-            name="receptionStatus"
-          >
-            <option value="Mise en attente">Mise en attente</option>  
-          </select>
+          <label class="truck-label">KOR</label>
+          <input class="truck-input" [value]="selectedTruck?.kor" disabled />
         </div>
+
+        <div class="truck-field">
+          <label class="truck-label">TH</label>
+          <input class="truck-input" [value]="selectedTruck?.th" disabled />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Commentaire admin</label>
+          <textarea class="truck-input" rows="3" [(ngModel)]="adminComment"></textarea>
+        </div>
+
       </div>
+
       <div class="truck-modal-footer">
-        <!-- Confirmation après enregistrement -->
-        <div class="truck-confirm" *ngIf="showSuccessBanner">
-          <span class="material-symbols-outlined truck-confirm-icon">
-            check_circle
-          </span>
-          <div>
-            <p class="truck-confirm-title">Camion enregistré</p>
-            <p class="truck-confirm-sub">
-              Statut : {{ lastSavedStatutLabel }}
-            </p>
-          </div>
-        </div>
 
         <button
           type="button"
           class="truck-submit"
-          (click)="saveTruck()"
+          style="background-color:#4caf50"
+          (click)="validateTruck()"
         >
-          Enregistrer l’arrivée
+          Valider
         </button>
+
+        <button
+          type="button"
+          class="truck-submit"
+          style="background-color:#e53935"
+          (click)="refuseTruck()"
+        >
+          Refouler
+        </button>
+
       </div>
+
     </div>
   </div>
+
 </div>

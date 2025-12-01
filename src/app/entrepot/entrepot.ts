@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 type TruckStatus =
-  | 'En attente'
+  | 'En attente'                // données analyse envoyées par le gérant → attente validation admin
+  | 'Validé'                    // validation admin → attente démarrage déchargement par gérant
   | 'En cours de déchargement'
   | 'Déchargé'
-  | 'Annulé';
+  | 'Annulé';                   // refoulé par admin
 
 interface Truck {
   id: number;
@@ -15,17 +16,23 @@ interface Truck {
   transporteur: string;
   transfert: string;
   kor: string;
+  th?: string;
   statut: TruckStatus;
   heureArrivee: string;
   entrepotId: number;
   createdAt: string;
+  coperative?: string;
 }
 
-// structure minimale des entrepôts stockés dans localStorage
 interface StoredWarehouse {
   id: number;
   name: string;
   location: string;
+}
+
+interface AdminComment {
+  truckId: number;
+  comment: string;
 }
 
 @Component({
@@ -36,214 +43,66 @@ interface StoredWarehouse {
   styleUrl: './entrepot.scss',
 })
 export class Entrepot implements OnInit {
-  // Entrepôt courant (utilisé dans le template)
+  // ---------------------------------------------------------------------------
+  // Entrepôt courant
+  // ---------------------------------------------------------------------------
   entrepot = {
     id: 0,
     nom: '',
     lieu: '',
   };
 
-  // état UI
-  showModal = false;
-  showSuccessBanner = false;
-  lastSavedStatutLabel: string | null = null;
+  // UI
+  currentTab: 'pending' | 'validated' | 'cancelled' = 'pending';
+  showDetailsModal = false;
 
-  currentTab: 'pending' | 'inProgress' | 'done' | 'cancelled' = 'pending';
-
-  // liste des camions de CET entrepôt
+  // Liste des camions de cet entrepôt
   trucks: Truck[] = [];
 
-  // formulaire camion
-  newTruck = {
-    immatriculation: '',
-    transporteur: '',
-    transfert: '',
-    kor: '',
-    receptionStatus: 'Mise en attente' as 'Mise en attente' | 'Refouler',
-  };
+  // Truck sélectionné pour le modal "Voir plus"
+  selectedTruck: Truck | null = null;
 
-  private readonly storageKey = 'trucks';
+  // Commentaire admin (pour valid/refoul)
+  adminComment: string = '';
+
+  private readonly truckStorageKey = 'trucks';
+  private readonly commentStorageKey = 'truckAdminComments';
 
   constructor(private route: ActivatedRoute) {}
 
   ngOnInit(): void {
-    // 1) Récupérer l'id depuis l'URL
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
 
-    // 2) Charger la liste des entrepôts
+    // Charger entrepôts
     let warehouses: StoredWarehouse[] = [];
-
     const saved = localStorage.getItem('warehouses');
     if (saved) {
       try {
         warehouses = JSON.parse(saved);
-      } catch (e) {
-        console.error('Erreur de lecture du localStorage (warehouses)', e);
-      }
+      } catch {}
     }
 
-    // si rien en localStorage, on prévoit au moins un entrepôt par défaut
     if (warehouses.length === 0) {
       warehouses = [
-        {
-          id: 1,
-          name: 'Entrepôt Lyon Sud',
-          location: 'Corbas, Auvergne-Rhône-Alpes',
-        },
+        { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes' },
       ];
     }
 
-    // 3) Trouver l’entrepôt correspondant à l'id
-    const found =
-      warehouses.find((w) => w.id === idParam) ?? warehouses[0];
-
+    const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
     this.entrepot = {
       id: found.id,
       nom: found.name,
       lieu: found.location,
     };
 
-    // 4) Charger les camions de CET entrepôt
-    this.loadTrucksFromStorage();
+    this.loadTrucks();
   }
 
   // ---------------------------------------------------------------------------
-  // Gestion de la modale
+  // Chargement camions
   // ---------------------------------------------------------------------------
-  openModal(): void {
-    this.showModal = true;
-    this.showSuccessBanner = false;
-    this.lastSavedStatutLabel = null;
-  }
-
-  closeModal(): void {
-    this.showModal = false;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Statistiques
-  // ---------------------------------------------------------------------------
-  get totalCamionsArrives(): number {
-    return this.trucks.length;
-  }
-
-  get nbEnAttente(): number {
-    return this.trucks.filter((t) => t.statut === 'En attente').length;
-  }
-
-  get nbEnCours(): number {
-    return this.trucks.filter(
-      (t) => t.statut === 'En cours de déchargement'
-    ).length;
-  }
-
-  get nbDecharges(): number {
-    return this.trucks.filter((t) => t.statut === 'Déchargé').length;
-  }
-
-  get nbRefoules(): number {
-    return this.trucks.filter((t) => t.statut === 'Annulé').length;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Filtrage par onglet
-  // ---------------------------------------------------------------------------
-  setTab(tab: 'pending' | 'inProgress' | 'done' | 'cancelled'): void {
-    this.currentTab = tab;
-  }
-
-  get filteredTrucks(): Truck[] {
-    switch (this.currentTab) {
-      case 'pending':
-        return this.trucks.filter((t) => t.statut === 'En attente');
-      case 'inProgress':
-        return this.trucks.filter(
-          (t) => t.statut === 'En cours de déchargement'
-        );
-      case 'done':
-        return this.trucks.filter((t) => t.statut === 'Déchargé');
-      case 'cancelled':
-        return this.trucks.filter((t) => t.statut === 'Annulé');
-      default:
-        return this.trucks;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Actions sur un camion
-  // ---------------------------------------------------------------------------
-  startUnloading(truck: Truck): void {
-    if (truck.statut !== 'En attente') {
-      return;
-    }
-    this.updateTruckStatus(truck, 'En cours de déchargement');
-  }
-
-  markAsDischarged(truck: Truck): void {
-    if (truck.statut !== 'En cours de déchargement') {
-      return;
-    }
-    this.updateTruckStatus(truck, 'Déchargé');
-  }
-
-  private updateTruckStatus(truck: Truck, newStatus: TruckStatus): void {
-    truck.statut = newStatus;
-    this.saveTrucksToStorage();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Enregistrement d'un nouveau camion
-  // ---------------------------------------------------------------------------
-  saveTruck(): void {
-    if (!this.newTruck.immatriculation.trim()) {
-      return;
-    }
-
-    const statutCamion: TruckStatus =
-      this.newTruck.receptionStatus === 'Refouler'
-        ? 'Annulé'
-        : 'En attente';
-
-    const maintenant = new Date();
-    const heureArrivee = maintenant.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const truck: Truck = {
-      id: Date.now(),
-      immatriculation: this.newTruck.immatriculation.trim(),
-      transporteur: this.newTruck.transporteur.trim(),
-      transfert: this.newTruck.transfert.trim(),
-      kor: this.newTruck.kor.trim(),
-      statut: statutCamion,
-      heureArrivee,
-      entrepotId: this.entrepot.id,
-      createdAt: maintenant.toISOString(),
-    };
-
-    this.trucks.push(truck);
-    this.saveTrucksToStorage();
-
-    this.lastSavedStatutLabel =
-      statutCamion === 'Annulé' ? 'REFOULÉ' : 'EN ATTENTE';
-
-    this.newTruck = {
-      immatriculation: '',
-      transporteur: '',
-      transfert: '',
-      kor: '',
-      receptionStatus: 'Mise en attente',
-    };
-
-    this.showSuccessBanner = true;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Persistance dans le localStorage
-  // ---------------------------------------------------------------------------
-  private loadTrucksFromStorage(): void {
-    const raw = localStorage.getItem(this.storageKey);
+  private loadTrucks(): void {
+    const raw = localStorage.getItem(this.truckStorageKey);
     if (!raw) {
       this.trucks = [];
       return;
@@ -252,15 +111,15 @@ export class Entrepot implements OnInit {
     try {
       const all: Truck[] = JSON.parse(raw);
       this.trucks = all.filter((t) => t.entrepotId === this.entrepot.id);
-    } catch (e) {
-      console.error('Erreur de lecture du localStorage (trucks)', e);
+    } catch {
       this.trucks = [];
     }
   }
 
-  private saveTrucksToStorage(): void {
-    const raw = localStorage.getItem(this.storageKey);
+  private saveTrucks(): void {
+    const raw = localStorage.getItem(this.truckStorageKey);
     let all: Truck[] = [];
+
     if (raw) {
       try {
         all = JSON.parse(raw);
@@ -269,10 +128,113 @@ export class Entrepot implements OnInit {
       }
     }
 
-    // on remplace tous les camions de cet entrepôt
     all = all.filter((t) => t.entrepotId !== this.entrepot.id);
     all.push(...this.trucks);
 
-    localStorage.setItem(this.storageKey, JSON.stringify(all));
+    localStorage.setItem(this.truckStorageKey, JSON.stringify(all));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gestion commentaires
+  // ---------------------------------------------------------------------------
+  private loadCommentForTruck(truckId: number): string {
+    const raw = localStorage.getItem(this.commentStorageKey);
+    if (!raw) return '';
+
+    try {
+      const all: AdminComment[] = JSON.parse(raw);
+      const found = all.find((c) => c.truckId === truckId);
+      return found ? found.comment : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private saveComment(truckId: number, comment: string) {
+    const raw = localStorage.getItem(this.commentStorageKey);
+    let all: AdminComment[] = [];
+
+    if (raw) {
+      try {
+        all = JSON.parse(raw);
+      } catch {}
+    }
+
+    all = all.filter((c) => c.truckId !== truckId);
+    if (comment.trim().length > 0) {
+      all.push({ truckId, comment });
+    }
+
+    localStorage.setItem(this.commentStorageKey, JSON.stringify(all));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Onglets
+  // ---------------------------------------------------------------------------
+  setTab(tab: 'pending' | 'validated' | 'cancelled'): void {
+    this.currentTab = tab;
+  }
+
+  get filteredTrucks(): Truck[] {
+    switch (this.currentTab) {
+      case 'pending':
+        return this.trucks.filter((t) => t.statut === 'En attente');
+      case 'validated':
+        return this.trucks.filter((t) => t.statut === 'Validé');
+      case 'cancelled':
+        return this.trucks.filter((t) => t.statut === 'Annulé');
+      default:
+        return this.trucks;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Modal "Voir plus"
+  // ---------------------------------------------------------------------------
+  openDetailsModal(truck: Truck): void {
+    this.selectedTruck = truck;
+    this.adminComment = this.loadCommentForTruck(truck.id);
+    this.showDetailsModal = true;
+  }
+
+  closeDetailsModal(): void {
+    this.showDetailsModal = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Validation / Refoulement
+  // ---------------------------------------------------------------------------
+  validateTruck(): void {
+    if (!this.selectedTruck) return;
+
+    this.selectedTruck.statut = 'Validé';
+    this.saveComment(this.selectedTruck.id, this.adminComment);
+    this.saveTrucks();
+    this.closeDetailsModal();
+  }
+
+  refuseTruck(): void {
+    if (!this.selectedTruck) return;
+
+    this.selectedTruck.statut = 'Annulé';
+    this.saveComment(this.selectedTruck.id, this.adminComment);
+    this.saveTrucks();
+    this.closeDetailsModal();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Statistiques
+  // ---------------------------------------------------------------------------
+  get totalCamionsArrives(): number {
+    return this.trucks.length;
+  }
+  get nbPending(): number {
+    return this.trucks.filter((t) => t.statut === 'En attente').length;
+  }
+  get nbValidated(): number {
+    return this.trucks.filter((t) => t.statut === 'Validé').length;
+  }
+  get nbCancelled(): number {
+    return this.trucks.filter((t) => t.statut === 'Annulé').length;
   }
 }

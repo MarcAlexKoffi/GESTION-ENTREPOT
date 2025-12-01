@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink, RouterModule } from '@angular/router';
 
 type TruckStatus =
+  | 'Enregistre'
   | 'En attente'
-  | 'En cours de déchargement'
   | 'Déchargé'
   | 'Annulé';
 
@@ -15,10 +15,12 @@ interface Truck {
   transporteur: string;
   transfert: string;
   kor: string;
+  th?: string;
   statut: TruckStatus;
   heureArrivee: string;
   entrepotId: number;
   createdAt: string;
+  coperative?: string;
 }
 
 // structure minimale des entrepôts stockés dans localStorage
@@ -47,6 +49,8 @@ export class UserEntrepot implements OnInit {
   showModal = false;
   showSuccessBanner = false;
   lastSavedStatutLabel: string | null = null;
+  // Modal d'analyse
+showAnalysisModal = false;
 
   currentTab: 'pending' | 'inProgress' | 'done' | 'cancelled' = 'pending';
 
@@ -58,10 +62,17 @@ export class UserEntrepot implements OnInit {
     immatriculation: '',
     transporteur: '',
     transfert: '',
-    kor: '',
+    coperative: '',
     receptionStatus: 'Mise en attente' as 'Mise en attente' | 'Refouler',
   };
+// Truck sélectionné pour l'analyse
+selectedTruckForAnalysis: Truck | null = null;
 
+// Formulaire d'analyse
+analysisData = {
+  kor: '',
+  th: ''
+};
   private readonly storageKey = 'trucks';
 
   constructor(private route: ActivatedRoute) {}
@@ -119,6 +130,15 @@ export class UserEntrepot implements OnInit {
   closeModal(): void {
     this.showModal = false;
   }
+openAnalysisModal(truck: Truck): void {
+  this.selectedTruckForAnalysis = truck;
+  this.analysisData = { kor: '', th: '' };
+  this.showAnalysisModal = true;
+}
+
+closeAnalysisModal(): void {
+  this.showAnalysisModal = false;
+}
 
   // ---------------------------------------------------------------------------
   // Statistiques
@@ -128,12 +148,12 @@ export class UserEntrepot implements OnInit {
   }
 
   get nbEnAttente(): number {
-    return this.trucks.filter((t) => t.statut === 'En attente').length;
+    return this.trucks.filter((t) => t.statut === 'Enregistre').length;
   }
 
   get nbEnCours(): number {
     return this.trucks.filter(
-      (t) => t.statut === 'En cours de déchargement'
+      (t) => t.statut === 'En attente'
     ).length;
   }
 
@@ -155,10 +175,10 @@ export class UserEntrepot implements OnInit {
   get filteredTrucks(): Truck[] {
     switch (this.currentTab) {
       case 'pending':
-        return this.trucks.filter((t) => t.statut === 'En attente');
+        return this.trucks.filter((t) => t.statut === 'Enregistre');
       case 'inProgress':
         return this.trucks.filter(
-          (t) => t.statut === 'En cours de déchargement'
+          (t) => t.statut === 'En attente'
         );
       case 'done':
         return this.trucks.filter((t) => t.statut === 'Déchargé');
@@ -173,18 +193,37 @@ export class UserEntrepot implements OnInit {
   // Actions sur un camion
   // ---------------------------------------------------------------------------
   startUnloading(truck: Truck): void {
-    if (truck.statut !== 'En attente') {
+    if (truck.statut !== 'Enregistre') {
       return;
     }
-    this.updateTruckStatus(truck, 'En cours de déchargement');
+    this.updateTruckStatus(truck, 'En attente');
   }
 
   markAsDischarged(truck: Truck): void {
-    if (truck.statut !== 'En cours de déchargement') {
+    if (truck.statut !== 'En attente') {
       return;
     }
     this.updateTruckStatus(truck, 'Déchargé');
   }
+submitAnalysis(): void {
+  if (!this.analysisData.kor.trim() || !this.analysisData.th.trim()) {
+    alert("Merci de remplir KOR et TH.");
+    return;
+  }
+
+  if (!this.selectedTruckForAnalysis) return;
+
+  // On met à jour les données du camion
+  this.selectedTruckForAnalysis.kor = this.analysisData.kor.trim();
+  (this.selectedTruckForAnalysis as any).th = this.analysisData.th.trim(); // champ ajouté
+  this.selectedTruckForAnalysis.statut = 'En attente';
+
+  // Sauvegarde dans le localStorage
+  this.saveTrucksToStorage();
+
+  // Fermeture du modal
+  this.showAnalysisModal = false;
+}
 
   private updateTruckStatus(truck: Truck, newStatus: TruckStatus): void {
     truck.statut = newStatus;
@@ -202,7 +241,7 @@ export class UserEntrepot implements OnInit {
     const statutCamion: TruckStatus =
       this.newTruck.receptionStatus === 'Refouler'
         ? 'Annulé'
-        : 'En attente';
+        : 'Enregistre';
 
     const maintenant = new Date();
     const heureArrivee = maintenant.toLocaleTimeString('fr-FR', {
@@ -215,7 +254,8 @@ export class UserEntrepot implements OnInit {
       immatriculation: this.newTruck.immatriculation.trim(),
       transporteur: this.newTruck.transporteur.trim(),
       transfert: this.newTruck.transfert.trim(),
-      kor: this.newTruck.kor.trim(),
+      kor: this.newTruck.coperative.trim(),
+      coperative: this.newTruck.coperative.trim(),
       statut: statutCamion,
       heureArrivee,
       entrepotId: this.entrepot.id,
@@ -232,7 +272,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: '',
       transporteur: '',
       transfert: '',
-      kor: '',
+      coperative: '',
       receptionStatus: 'Mise en attente',
     };
 
