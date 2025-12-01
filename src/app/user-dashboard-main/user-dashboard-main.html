@@ -1,0 +1,127 @@
+<div class="pageMain">
+    <div class="kpi-page-root">
+      <main class="kpi-page">
+        <!-- TITRE PAGE -->
+        <section class="kpi-page-heading">
+          <h1 class="kpi-page-title">Tableau de bord - KPIs et Filtres Temporels</h1>
+          <p class="kpi-page-subtitle">
+            Indicateurs clés de performance et sélection de la période.
+          </p>
+        </section>
+
+        <!-- FILTRES TEMPORELS -->
+        <section class="kpi-filters-card" aria-label="Filtres temporels">
+          <h2 class="kpi-filters-title">Filtres temporels</h2>
+          <div class="kpi-filters-group" role="group">
+            <button
+              type="button"
+              class="kpi-filter-btn kpi-filter-btn--active"
+            >
+              Par jour
+            </button>
+            <button type="button" class="kpi-filter-btn">Par semaine</button>
+            <button type="button" class="kpi-filter-btn">Par mois</button>
+            <button type="button" class="kpi-filter-btn">Par an</button>
+          </div>
+        </section>
+
+        <!-- KPI CARDS -->
+        <section aria-label="Indicateurs clés">
+          <h2 class="kpi-section-title">Indicateurs Clés de Performance</h2>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-card-icon">
+                  local_shipping
+                </span>
+                <span>Total présents</span>
+              </div>
+              <p class="kpi-card-value">82</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span
+                  class="material-symbols-outlined kpi-card-icon kpi-icon--info"
+                >
+                  hourglass_top
+                </span>
+                <span>En attente</span>
+              </div>
+              <p class="kpi-card-value">15</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span
+                  class="material-symbols-outlined kpi-card-icon kpi-icon--warning"
+                >
+                  move_down
+                </span>
+                <span>En déchargement</span>
+              </div>
+              <p class="kpi-card-value">8</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span
+                  class="material-symbols-outlined kpi-card-icon kpi-icon--success"
+                >
+                  task_alt
+                </span>
+                <span>Déchargés</span>
+              </div>
+              <p class="kpi-card-value">40</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-card-icon">cancel</span>
+                <span>Annulés</span>
+              </div>
+              <p class="kpi-card-value">5</p>
+            </article>
+
+            <article class="kpi-card kpi-card--attention">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-icon--warning">
+                  pending_actions
+                </span>
+                <span>Attente décision admin</span>
+              </div>
+              <p class="kpi-card-value">3</p>
+            </article>
+
+            <article class="kpi-card kpi-card--danger">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-icon--danger">
+                  report
+                </span>
+                <span>Refusés (attente gérant)</span>
+              </div>
+              <p class="kpi-card-value">2</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-card-icon">undo</span>
+                <span>Refusés (renvoyés)</span>
+              </div>
+              <p class="kpi-card-value">7</p>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="material-symbols-outlined kpi-card-icon">
+                  published_with_changes
+                </span>
+                <span>Réintégrés</span>
+              </div>
+              <p class="kpi-card-value">2</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+</div>

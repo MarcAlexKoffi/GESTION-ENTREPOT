@@ -30,18 +30,6 @@
             </div>
             <!-- Filtres sous forme de "chips" -->
             <div class="filter-chips-row">
-              <!-- Filtre Entrepôt -->
-              <div class="filter-chip">
-                <span>Entrepôt</span>
-                <select class="filter-select" [(ngModel)]="selectedWarehouseId" (change)="applyFilters()">
-                  <option [ngValue]="'all'">Tous</option>
-                  <option *ngFor="let w of warehousesOptions" [ngValue]="w.id">
-                    {{ w.name }}
-                  </option>
-                </select>
-                <span class="material-symbols-outlined">arrow_drop_down</span>
-              </div>
-
               <!-- Filtre Période -->
               <div class="filter-chip">
                 <span>Période</span>

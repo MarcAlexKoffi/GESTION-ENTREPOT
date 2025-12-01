@@ -7,17 +7,21 @@ import { Entrepot } from './entrepot/entrepot';
 import { Register } from './register/register';
 import { Enregistrement } from './enregistrement/enregistrement';
 import { Statistique } from './statistique/statistique';
+import { UserDashboard } from './user-dashboard/user-dashboard';
+import { UserDashboardMain } from './user-dashboard-main/user-dashboard-main';
+import { UserHistorique } from './user-historique/user-historique';
+import { UserEntrepot } from './user-entrepot/user-entrepot';
 
 export const routes: Routes = [
     {
         path: '',
         redirectTo: 'login',
-        pathMatch: 'full'
+        pathMatch: 'full',
     },
     {
         path: 'login',
-        component: Login
-    },      
+        component: Login,
+    },
     {
         path: 'dashboard',
         component: Dashboard,
@@ -25,33 +29,55 @@ export const routes: Routes = [
             {
                 path: '',
                 redirectTo: 'dashboard-main',
-                pathMatch: 'full'
+                pathMatch: 'full',
             },
             {
                 path: 'dashboard-main',
-                component: DashboardMain
+                component: DashboardMain,
             },
             {
                 path: 'historique',
-                component: Historique
+                component: Historique,
             },
             {
                 path: 'entrepot/:id',
-                component: Entrepot
+                component: Entrepot,
             },
             {
                 path: 'statistique',
-                component: Statistique
-            }
-        ]
+                component: Statistique,
+            },
+        ],
     },
     {
         path: 'register',
-        component: Register
+        component: Register,
     },
     {
         path: 'enregistrement',
-        component: Enregistrement
-    }
-
+        component: Enregistrement,
+    },
+    {
+        path: 'userdashboard',
+        component: UserDashboard,
+        children: [
+            {
+                path: '',
+                redirectTo: 'userdashboardmain',
+                pathMatch: 'full'
+            },
+            {
+                path: 'userdashboardmain',
+                component: UserDashboardMain
+            },
+            {
+                path: 'userhistorique',
+                component: UserHistorique
+            },
+            {
+                path: 'userentrepot',
+                component: UserEntrepot
+            }
+        ]
+    },
 ];
