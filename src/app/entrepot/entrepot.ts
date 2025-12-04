@@ -22,6 +22,15 @@ interface Truck {
   entrepotId: number;
   createdAt: string;
   coperative?: string;
+
+  // Champs gérant stockés dans localStorage mais pas définis dans l’interface admin :
+  advancedStatus?: string;
+  history?: any[];
+  unreadForGerant?: boolean;
+  unreadForAdmin?: boolean;
+
+  refusedAt?: string;
+  renvoyeAt?: string;
 }
 
 interface StoredWarehouse {
@@ -43,26 +52,19 @@ interface AdminComment {
   styleUrl: './entrepot.scss',
 })
 export class Entrepot implements OnInit {
-  // ---------------------------------------------------------------------------
-  // Entrepôt courant
-  // ---------------------------------------------------------------------------
+
   entrepot = {
     id: 0,
     nom: '',
     lieu: '',
   };
 
-  // UI
-  currentTab: 'pending' | 'validated' | 'cancelled' = 'pending';
+  // Ajout de la nouvelle catégorie RENVOYÉS
+  currentTab: 'pending' | 'validated' | 'cancelled' | 'renvoyes' = 'pending';
   showDetailsModal = false;
 
-  // Liste des camions de cet entrepôt
   trucks: Truck[] = [];
-
-  // Truck sélectionné pour le modal "Voir plus"
   selectedTruck: Truck | null = null;
-
-  // Commentaire admin (pour valid/refoul)
   adminComment: string = '';
 
   private readonly truckStorageKey = 'trucks';
@@ -73,13 +75,10 @@ export class Entrepot implements OnInit {
   ngOnInit(): void {
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
 
-    // Charger entrepôts
     let warehouses: StoredWarehouse[] = [];
     const saved = localStorage.getItem('warehouses');
     if (saved) {
-      try {
-        warehouses = JSON.parse(saved);
-      } catch {}
+      try { warehouses = JSON.parse(saved); } catch {}
     }
 
     if (warehouses.length === 0) {
@@ -98,9 +97,9 @@ export class Entrepot implements OnInit {
     this.loadTrucks();
   }
 
-  // ---------------------------------------------------------------------------
-  // Chargement camions
-  // ---------------------------------------------------------------------------
+  // ================================================================
+  // CHARGEMENT CAMIONS
+  // ================================================================
   private loadTrucks(): void {
     const raw = localStorage.getItem(this.truckStorageKey);
     if (!raw) {
@@ -134,9 +133,9 @@ export class Entrepot implements OnInit {
     localStorage.setItem(this.truckStorageKey, JSON.stringify(all));
   }
 
-  // ---------------------------------------------------------------------------
-  // Gestion commentaires
-  // ---------------------------------------------------------------------------
+  // ================================================================
+  // COMMENTAIRES ADMIN
+  // ================================================================
   private loadCommentForTruck(truckId: number): string {
     const raw = localStorage.getItem(this.commentStorageKey);
     if (!raw) return '';
@@ -155,9 +154,7 @@ export class Entrepot implements OnInit {
     let all: AdminComment[] = [];
 
     if (raw) {
-      try {
-        all = JSON.parse(raw);
-      } catch {}
+      try { all = JSON.parse(raw); } catch {}
     }
 
     all = all.filter((c) => c.truckId !== truckId);
@@ -168,10 +165,10 @@ export class Entrepot implements OnInit {
     localStorage.setItem(this.commentStorageKey, JSON.stringify(all));
   }
 
-  // ---------------------------------------------------------------------------
-  // Onglets
-  // ---------------------------------------------------------------------------
-  setTab(tab: 'pending' | 'validated' | 'cancelled'): void {
+  // ================================================================
+  // ONGLET
+  // ================================================================
+  setTab(tab: 'pending' | 'validated' | 'cancelled' | 'renvoyes'): void {
     this.currentTab = tab;
   }
 
@@ -179,21 +176,44 @@ export class Entrepot implements OnInit {
     switch (this.currentTab) {
       case 'pending':
         return this.trucks.filter((t) => t.statut === 'En attente');
+
       case 'validated':
         return this.trucks.filter((t) => t.statut === 'Validé');
+
       case 'cancelled':
-        return this.trucks.filter((t) => t.statut === 'Annulé');
+        // Refoulés mais PAS renvoyés
+        return this.trucks.filter((t: any) =>
+          t.statut === 'Annulé' &&
+          t.advancedStatus !== 'REFUSE_RENVOYE'
+        );
+
+      case 'renvoyes':
+        // RENVOYÉS par le gérant
+        return this.trucks.filter((t: any) =>
+          t.statut === 'Annulé' &&
+          t.advancedStatus === 'REFUSE_RENVOYE'
+        );
+
       default:
         return this.trucks;
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Modal "Voir plus"
-  // ---------------------------------------------------------------------------
+  // ================================================================
+  // MODAL "VOIR PLUS"
+  // ================================================================
   openDetailsModal(truck: Truck): void {
     this.selectedTruck = truck;
+
+    // Charger le commentaire admin
     this.adminComment = this.loadCommentForTruck(truck.id);
+
+    // Si admin ouvre, on considère que la notification est lue
+    if (truck.unreadForAdmin) {
+      truck.unreadForAdmin = false;
+      this.saveTrucks();
+    }
+
     this.showDetailsModal = true;
   }
 
@@ -201,40 +221,90 @@ export class Entrepot implements OnInit {
     this.showDetailsModal = false;
   }
 
-  // ---------------------------------------------------------------------------
-  // Validation / Refoulement
-  // ---------------------------------------------------------------------------
+  // ================================================================
+  // VALIDATION
+  // ================================================================
   validateTruck(): void {
     if (!this.selectedTruck) return;
 
+    // Statut admin
     this.selectedTruck.statut = 'Validé';
+
+    // Notification côté gérant
+    (this.selectedTruck as any).unreadForGerant = true;
+
+    // Historique gérant
+    const now = new Date().toISOString();
+    (this.selectedTruck as any).history = (this.selectedTruck as any).history || [];
+    (this.selectedTruck as any).history.push({
+      event: 'Validation administrateur',
+      by: 'admin',
+      date: now
+    });
+
     this.saveComment(this.selectedTruck.id, this.adminComment);
+
     this.saveTrucks();
     this.closeDetailsModal();
   }
 
+  // ================================================================
+  // REFOULEMENT
+  // ================================================================
   refuseTruck(): void {
     if (!this.selectedTruck) return;
 
+    // Statut ADMIN : "Annulé"
     this.selectedTruck.statut = 'Annulé';
+
+    // Statut GÉRANT : "Refoulé"
+    (this.selectedTruck as any).statut = 'Refoulé';
+    (this.selectedTruck as any).advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
+    (this.selectedTruck as any).refusedAt = new Date().toISOString();
+
+    // Le gérant reçoit une notification
+    (this.selectedTruck as any).unreadForGerant = true;
+
+    // Historique
+    (this.selectedTruck as any).history = (this.selectedTruck as any).history || [];
+    (this.selectedTruck as any).history.push({
+      event: 'Refus administrateur',
+      by: 'admin',
+      date: new Date().toISOString()
+    });
+
     this.saveComment(this.selectedTruck.id, this.adminComment);
+
     this.saveTrucks();
     this.closeDetailsModal();
   }
 
-  // ---------------------------------------------------------------------------
-  // Statistiques
-  // ---------------------------------------------------------------------------
+  // ================================================================
+  // STATISTIQUES
+  // ================================================================
   get totalCamionsArrives(): number {
     return this.trucks.length;
   }
+
   get nbPending(): number {
     return this.trucks.filter((t) => t.statut === 'En attente').length;
   }
+
   get nbValidated(): number {
     return this.trucks.filter((t) => t.statut === 'Validé').length;
   }
+
   get nbCancelled(): number {
-    return this.trucks.filter((t) => t.statut === 'Annulé').length;
+    return this.trucks.filter((t: any) =>
+      t.statut === 'Annulé' &&
+      t.advancedStatus !== 'REFUSE_RENVOYE'
+    ).length;
+  }
+
+  get nbRenvoyes(): number {
+    return this.trucks.filter((t: any) =>
+      t.statut === 'Annulé' &&
+      t.advancedStatus === 'REFUSE_RENVOYE'
+    ).length;
   }
 }

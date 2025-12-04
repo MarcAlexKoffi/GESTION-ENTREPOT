@@ -67,9 +67,40 @@
       <!-- TOP BAR -->
       <header class="topbar">
         <div class="topbar-actions">
-          <button class="icon-button" type="button">
-            <span class="material-symbols-outlined">notifications</span>
-          </button>
+         <!-- NOTIFICATION BUTTON -->
+<div class="notification-wrapper" (click)="toggleNotifications()" style="position: relative;">
+  
+  <button class="icon-button" type="button">
+    <span class="material-symbols-outlined">notifications</span>
+
+    <!-- BADGE NOTIF -->
+    <span *ngIf="notifCount > 0" class="notif-badge">
+      {{ notifCount }}
+    </span>
+  </button>
+  <!-- DROPDOWN -->
+  <div class="notif-dropdown" *ngIf="showNotifDropdown">
+    <p class="notif-title">Demandes en attente</p>
+    <div *ngIf="notifications.length === 0" class="notif-empty">
+      Aucune demande en attente.
+    </div>
+    <div *ngFor="let n of notifications" class="notif-item"
+         (click)="openNotification(n); $event.stopPropagation();">
+
+      <div class="notif-line-main">
+        <span class="notif-immat">{{ n.immatriculation }}</span>
+        <span class="notif-entrepot">{{ n.entrepotName }}</span>
+      </div>
+
+      <div class="notif-line-meta">
+        <span class="notif-time">Arrivé : {{ n.heureArrivee }}</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
 
           <div class="user-block">
             <div

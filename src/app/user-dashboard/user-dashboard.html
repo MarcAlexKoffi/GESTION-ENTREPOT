@@ -63,9 +63,42 @@
       <!-- TOP BAR -->
       <header class="topbar">
         <div class="topbar-actions">
-          <button class="icon-button" type="button">
-            <span class="material-symbols-outlined">notifications</span>
-          </button>
+         <div class="notification-wrapper" (click)="toggleNotifications()" style="position:relative">
+
+  <button class="icon-button" type="button">
+    <span class="material-symbols-outlined">notifications</span>
+
+    <span *ngIf="notifCount > 0" class="notif-badge">
+      {{ notifCount }}
+    </span>
+  </button>
+
+  <div class="notif-dropdown" *ngIf="showNotifDropdown">
+
+    <p class="notif-title">Actions administrateur</p>
+
+    <div *ngIf="notifications.length === 0" class="notif-empty">
+      Aucune notification.
+    </div>
+
+    <div *ngFor="let n of notifications" class="notif-item" 
+         (click)="openNotification(n); $event.stopPropagation();">
+
+      <div class="notif-line-main">
+        <span class="notif-immat">{{ n.immatriculation }}</span>
+        <span class="notif-entrepot">{{ n.entrepotName }}</span>
+      </div>
+
+      <div class="notif-line-meta">
+        <span>Statut : {{ n.statut }}</span>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
 
           <div class="user-block">
             <div
