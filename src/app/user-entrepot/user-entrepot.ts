@@ -8,7 +8,8 @@ export type TruckStatus =
   | 'En attente'
   | 'Validé'
   | 'Refoulé'
-  | 'Déchargé';
+  | 'Déchargé'
+  | 'Annulé';
 
 export type AdvancedTruckStatus =
   | 'REFUSE_EN_ATTENTE_GERANT'
@@ -74,18 +75,12 @@ export interface StoredTruck {
   styleUrl: './user-entrepot.scss',
 })
 export class UserEntrepot implements OnInit {
-  
   entrepot = { id: 0, nom: '', lieu: '' };
 
   trucks: StoredTruck[] = [];
 
-  currentTab:
-    | 'enregistres'
-    | 'attente'
-    | 'valides'
-    | 'refoules'
-    | 'acceptes'
-    | 'historique' = 'enregistres';
+  currentTab: 'enregistres' | 'attente' | 'valides' | 'refoules' | 'acceptes' | 'historique' =
+    'enregistres';
 
   // Modales
   showEditModal = false;
@@ -102,7 +97,7 @@ export class UserEntrepot implements OnInit {
     immatriculation: '',
     transporteur: '',
     transfert: '',
-    coperative: ''
+    coperative: '',
   };
 
   selectedTruckForEdit: StoredTruck | null = null;
@@ -188,10 +183,17 @@ export class UserEntrepot implements OnInit {
         return this.trucks.filter((t) => t.statut === 'En attente');
 
       case 'valides':
-        return this.trucks.filter((t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL');
+        return this.trucks.filter(
+          (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+        );
 
       case 'refoules':
-        return this.trucks.filter((t) => t.statut === 'Refoulé');
+        return this.trucks.filter(
+          (t: any) =>
+            t.statut === 'Refoulé' ||
+            (t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT') ||
+            (t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE')
+        );
 
       case 'acceptes':
         return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
@@ -213,7 +215,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: '',
       transporteur: '',
       transfert: '',
-      coperative: ''
+      coperative: '',
     };
     this.showModal = true;
   }
@@ -253,9 +255,7 @@ export class UserEntrepot implements OnInit {
       createdAt: now.toISOString(),
       heureArrivee: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
 
-      history: [
-        { event: 'Camion enregistré', by: 'gerant', date: now.toISOString() }
-      ]
+      history: [{ event: 'Camion enregistré', by: 'gerant', date: now.toISOString() }],
     };
 
     this.trucks.push(truck);
@@ -331,7 +331,7 @@ export class UserEntrepot implements OnInit {
       categorie: t.products?.categorie ?? '',
       poids: t.products?.poids ?? '',
       quantite: t.products?.quantite ?? '',
-      observations: t.products?.observations ?? ''
+      observations: t.products?.observations ?? '',
     };
 
     this.showProductsModal = true;
@@ -360,16 +360,21 @@ export class UserEntrepot implements OnInit {
   // =========================================================
   // REFOULEMENT : RENVOYER PAR LE GÉRANT
   // =========================================================
-  markAsRenvoye(t: StoredTruck) {
-    t.advancedStatus = 'REFUSE_RENVOYE';
-    t.renvoyeAt = new Date().toISOString();
+markAsRenvoye(t: StoredTruck) {
+  //  Assure la compatibilité admin : l’admin classe par statut "Annulé"
+  t.statut = 'Annulé';
 
-    // NOTIFIER L’ADMIN
-    t.unreadForAdmin = true;
+  // Statut avancé : renvoyé
+  t.advancedStatus = 'REFUSE_RENVOYE';
+  t.renvoyeAt = new Date().toISOString();
 
-    this.addHistory(t, 'Camion renvoyé par le gérant');
-    this.saveTrucks();
-  }
+  // Notifier l’admin
+  t.unreadForAdmin = true;
+
+  this.addHistory(t, 'Camion renvoyé par le gérant');
+  this.saveTrucks();
+}
+
 
   // =========================================================
   // HISTORIQUE
@@ -395,10 +400,16 @@ export class UserEntrepot implements OnInit {
     return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
   }
   get totalRefoules() {
-    return this.trucks.filter((t) => t.statut === 'Refoulé').length;
+    return this.trucks.filter(
+      (t: any) =>
+        t.statut === 'Refoulé' ||
+        (t.statut === 'Annulé' &&
+          (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+            t.advancedStatus === 'REFUSE_RENVOYE'))
+    ).length;
   }
 
   get historique() {
-    return this.trucks.filter(t => t.history && t.history.length > 0);
+    return this.trucks.filter((t) => t.history && t.history.length > 0);
   }
 }

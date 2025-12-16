@@ -252,32 +252,31 @@ export class Entrepot implements OnInit {
   // REFOULEMENT
   // ================================================================
   refuseTruck(): void {
-    if (!this.selectedTruck) return;
+  if (!this.selectedTruck) return;
 
-    // Statut ADMIN : "Annulé"
-    this.selectedTruck.statut = 'Annulé';
+  // ✅ Statut ADMIN (utilisé pour les onglets Refoulés / Renvoyés)
+  this.selectedTruck.statut = 'Annulé';
 
-    // Statut GÉRANT : "Refoulé"
-    (this.selectedTruck as any).statut = 'Refoulé';
-    (this.selectedTruck as any).advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
-    (this.selectedTruck as any).refusedAt = new Date().toISOString();
+  // ✅ Statut métier avancé (gérant)
+  this.selectedTruck.advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
+  this.selectedTruck.refusedAt = new Date().toISOString();
 
-    // Le gérant reçoit une notification
-    (this.selectedTruck as any).unreadForGerant = true;
+  // Notification côté gérant
+  this.selectedTruck.unreadForGerant = true;
 
-    // Historique
-    (this.selectedTruck as any).history = (this.selectedTruck as any).history || [];
-    (this.selectedTruck as any).history.push({
-      event: 'Refus administrateur',
-      by: 'admin',
-      date: new Date().toISOString()
-    });
+  // Historique
+  this.selectedTruck.history = this.selectedTruck.history || [];
+  this.selectedTruck.history.push({
+    event: 'Refus administrateur',
+    by: 'admin',
+    date: new Date().toISOString()
+  });
 
-    this.saveComment(this.selectedTruck.id, this.adminComment);
+  this.saveComment(this.selectedTruck.id, this.adminComment);
 
-    this.saveTrucks();
-    this.closeDetailsModal();
-  }
+  this.saveTrucks();
+  this.closeDetailsModal();
+}
 
   // ================================================================
   // STATISTIQUES

@@ -2,7 +2,6 @@
   <div class="page-root">
     <div class="page-center">
       <div class="page-shell">
-
         <!-- HEADER -->
         <header class="page-header">
           <div class="page-title-block">
@@ -39,287 +38,326 @@
           </article>
         </section>
         <!-- TOOLBAR -->
-                <section class="toolbar" aria-label="Filtres de recherche">
-                    <div class="toolbar-left">
-                        <div class="search-wrapper">
-                            <div class="search-icon">
-                                <span class="material-symbols-outlined">search</span>
-                            </div>
-                            <input type="text" class="search-input" placeholder="Rechercher..." />
-                        </div>
+        <section class="toolbar" aria-label="Filtres de recherche">
+          <div class="toolbar-left">
+            <div class="search-wrapper">
+              <div class="search-icon">
+                <span class="material-symbols-outlined">search</span>
+              </div>
+              <input type="text" class="search-input" placeholder="Rechercher..." />
+            </div>
 
-                        <button type="button" class="filter-button">
-                            <span class="material-symbols-outlined">calendar_today</span>
-                            <span>Aujourd'hui</span>
-                            <span class="material-symbols-outlined">arrow_drop_down</span>
-                        </button>
+            <button type="button" class="filter-button">
+              <span class="material-symbols-outlined">calendar_today</span>
+              <span>Aujourd'hui</span>
+              <span class="material-symbols-outlined">arrow_drop_down</span>
+            </button>
 
-                        <button type="button" class="filter-button">
-                            <span class="material-symbols-outlined">filter_list</span>
-                            <span>Statut</span>
-                            <span class="material-symbols-outlined">arrow_drop_down</span>
-                        </button>
-                    </div>
+            <button type="button" class="filter-button">
+              <span class="material-symbols-outlined">filter_list</span>
+              <span>Statut</span>
+              <span class="material-symbols-outlined">arrow_drop_down</span>
+            </button>
+          </div>
 
-                    <button type="button" class="btn-primary-main" (click)="openModal()">
-                        <span class="material-symbols-outlined">add</span>
-                        <span>Enregistrer un camion</span>
-                    </button>
-                </section>
+          <button type="button" class="btn-primary-main" (click)="openModal()">
+            <span class="material-symbols-outlined">add</span>
+            <span>Enregistrer un camion</span>
+          </button>
+        </section>
         <!-- ONGLET MENU -->
         <section class="tabs-header">
           <div class="tabs-row">
-
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'enregistres'"
-               (click)="currentTab = 'enregistres'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'enregistres'"
+              (click)="currentTab = 'enregistres'; $event.preventDefault()"
+            >
               Enregistrés
               <span class="tab-pill">{{ totalEnregistres }}</span>
             </a>
 
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'attente'"
-               (click)="currentTab = 'attente'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'attente'"
+              (click)="currentTab = 'attente'; $event.preventDefault()"
+            >
               En attente
               <span class="tab-pill">{{ totalEnAttente }}</span>
             </a>
 
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'valides'"
-               (click)="currentTab = 'valides'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'valides'"
+              (click)="currentTab = 'valides'; $event.preventDefault()"
+            >
               Validés
               <span class="tab-pill">{{ totalValides }}</span>
             </a>
 
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'refoules'"
-               (click)="currentTab = 'refoules'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'refoules'"
+              (click)="currentTab = 'refoules'; $event.preventDefault()"
+            >
               Refoulés
               <span class="tab-pill">{{ totalRefoules }}</span>
             </a>
 
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'acceptes'"
-               (click)="currentTab = 'acceptes'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'acceptes'"
+              (click)="currentTab = 'acceptes'; $event.preventDefault()"
+            >
               Acceptés
               <span class="tab-pill">{{ totalAcceptes }}</span>
             </a>
 
-            <a href="#" class="tab-link"
-               [class.tab-link--active]="currentTab === 'historique'"
-               (click)="currentTab = 'historique'; $event.preventDefault()">
+            <a
+              href="#"
+              class="tab-link"
+              [class.tab-link--active]="currentTab === 'historique'"
+              (click)="currentTab = 'historique'; $event.preventDefault()"
+            >
               Historique
               <span class="tab-pill">{{ historique.length }}</span>
             </a>
-
           </div>
         </section>
 
         <!-- TABLEAU -->
         <section class="card">
           <div class="table-wrapper">
-
             <table>
               <thead>
-              <tr>
-                <th>Immatriculation</th>
-                <th>Transporteur</th>
-                <th>Heure</th>
-                <th>Statut</th>
-                <th>Statut avancé</th>
-                <th>Actions</th>
-              </tr>
+                <tr>
+                  <th>Immatriculation</th>
+                  <th>Transporteur</th>
+                  <th>Heure</th>
+                  <th>Statut</th>
+                  <th>Statut avancé</th>
+                  <th>Actions</th>
+                </tr>
               </thead>
 
               <tbody>
+                <!-- VIDE -->
+                <tr *ngIf="getList().length === 0">
+                  <td colspan="6" class="cell-muted">Aucun camion dans cette catégorie</td>
+                </tr>
 
-              <!-- VIDE -->
-              <tr *ngIf="getList().length === 0">
-                <td colspan="6" class="cell-muted">Aucun camion dans cette catégorie</td>
-              </tr>
+                <!-- LIGNES -->
+                <tr *ngFor="let t of getList()">
+                  <td>{{ t.immatriculation }}</td>
+                  <td class="cell-muted">{{ t.transporteur }}</td>
+                  <td class="cell-muted">{{ t.heureArrivee }}</td>
 
-              <!-- LIGNES -->
-              <tr *ngFor="let t of getList()">
-
-                <td>{{ t.immatriculation }}</td>
-                <td class="cell-muted">{{ t.transporteur }}</td>
-                <td class="cell-muted">{{ t.heureArrivee }}</td>
-
-                <!-- STATUT -->
-                <td>
-  <span *ngIf="t.statut === 'Enregistré'" class="status-badge status-enregistre">Enregistré</span>
-  <span *ngIf="t.statut === 'En attente'" class="status-badge status-attente">En attente</span>
-  <span *ngIf="t.statut === 'Validé'" class="status-badge status-valide">Validé</span>
-  <span *ngIf="t.statut === 'Refoulé'" class="status-badge status-refoule">Refoulé</span>
-</td>
-
-
-                <!-- STATUT AVANCÉ (lisible) -->
-                <td class="cell-muted">
-                  <ng-container [ngSwitch]="t.advancedStatus">
-
-                    <span *ngSwitchCase="'REFUSE_EN_ATTENTE_GERANT'">
-                      En attente du gérant
+                  <!-- STATUT -->
+                  <td>
+                    <span *ngIf="t.statut === 'Enregistré'" class="status-badge status-enregistre"
+                      >Enregistré</span
+                    >
+                    <span *ngIf="t.statut === 'En attente'" class="status-badge status-attente"
+                      >En attente</span
+                    >
+                    <span *ngIf="t.statut === 'Validé'" class="status-badge status-valide"
+                      >Validé</span
+                    >
+                    <span
+                      *ngIf="
+                        t.statut === 'Refoulé' ||
+                        (t.statut === 'Annulé' &&
+                          (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+                            t.advancedStatus === 'REFUSE_RENVOYE'))
+                      "
+                      class="status-badge status-refoule"
+                    >
+                      Refoulé
                     </span>
+                  </td>
 
-                    <span *ngSwitchCase="'REFUSE_RENVOYE'">
-                      Renvoyé
-                    </span>
+                  <!-- STATUT AVANCÉ (lisible) -->
+                  <td class="cell-muted">
+                    <ng-container [ngSwitch]="t.advancedStatus">
+                      <span *ngSwitchCase="'REFUSE_EN_ATTENTE_GERANT'"> En attente du gérant </span>
 
-                    <span *ngSwitchCase="'REFUSE_REINTEGRE'">
-                      Réintégré
-                    </span>
+                      <span *ngSwitchCase="'REFUSE_RENVOYE'"> Renvoyé </span>
 
-                    <span *ngSwitchCase="'ACCEPTE_FINAL'">
-                      Accepté définitivement
-                    </span>
+                      <span *ngSwitchCase="'REFUSE_REINTEGRE'"> Réintégré </span>
 
-                    <span *ngSwitchDefault>—</span>
+                      <span *ngSwitchCase="'ACCEPTE_FINAL'"> Accepté définitivement </span>
 
-                  </ng-container>
-                </td>
+                      <span *ngSwitchDefault>—</span>
+                    </ng-container>
+                  </td>
 
-                <!-- ACTIONS -->
-                <td class="cell-actions">
-
-                  <div class="actions-menu-wrapper">
-
-                    <!-- BOUTON ... -->
-                    <button class="actions-menu-button"
-                            (click)="t.showMenu = !t.showMenu">
-                      <span class="material-symbols-outlined">more_vert</span>
-                    </button>
-
-                    <!-- MENU -->
-                    <div class="actions-menu" *ngIf="t.showMenu">
-
-                      <!-- ENREGISTRÉS -->
-                      <button *ngIf="t.statut === 'Enregistré'"
-                              (click)="openEditModal(t); t.showMenu=false">
-                        Modifier
+                  <!-- ACTIONS -->
+                  <td class="cell-actions">
+                    <div class="actions-menu-wrapper">
+                      <!-- BOUTON ... -->
+                      <button class="actions-menu-button" (click)="t.showMenu = !t.showMenu">
+                        <span class="material-symbols-outlined">more_vert</span>
                       </button>
 
-                      <button *ngIf="t.statut === 'Enregistré'"
-                              (click)="openAnalysisModal(t); t.showMenu=false">
-                        Résultats analyses
-                      </button>
+                      <!-- MENU -->
+                      <div class="actions-menu" *ngIf="t.showMenu">
+                        <!-- ENREGISTRÉS -->
+                        <button
+                          *ngIf="t.statut === 'Enregistré'"
+                          (click)="openEditModal(t); t.showMenu = false"
+                        >
+                          Modifier
+                        </button>
 
-                      <!-- VALIDÉS : Renseigner produits -->
-                      <button *ngIf="t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'"
-                              (click)="openProductsModal(t); t.showMenu=false">
-                        Renseigner détails produits
-                      </button>
+                        <button
+                          *ngIf="t.statut === 'Enregistré'"
+                          (click)="openAnalysisModal(t); t.showMenu = false"
+                        >
+                          Résultats analyses
+                        </button>
 
-                      <!-- REFOULE : attente gérant -->
-                      <button *ngIf="t.statut === 'Refoulé' && t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT'"
-                              (click)="markAsRenvoye(t); t.showMenu=false">
-                        Marquer comme renvoyé
-                      </button>
+                        <!-- VALIDÉS : Renseigner produits -->
+                        <button
+                          *ngIf="t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'"
+                          (click)="openProductsModal(t); t.showMenu = false"
+                        >
+                          Renseigner détails produits
+                        </button>
 
-                      <!-- HISTORIQUE -->
-                      <button (click)="openHistoryModal(t); t.showMenu=false">
-                        Voir historique
-                      </button>
+                        <!-- REFOULE : attente gérant -->
+                        <button
+                          *ngIf="
+                            (t.statut === 'Refoulé' || t.statut === 'Annulé') &&
+                            t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT'
+                          "
+                          (click)="markAsRenvoye(t); t.showMenu = false"
+                        >
+                          Marquer comme renvoyé
+                        </button>
 
+                        <!-- HISTORIQUE -->
+                        <button (click)="openHistoryModal(t); t.showMenu = false">
+                          Voir historique
+                        </button>
+                      </div>
                     </div>
-
-                  </div>
-
-                </td>
-
-              </tr>
-
+                  </td>
+                </tr>
               </tbody>
             </table>
-
           </div>
         </section>
-
       </div>
     </div>
   </div>
-<!-- MODALE ENREGISTREMENT CAMION -->
-<div class="modal" *ngIf="showModal">
+  <!-- MODALE ENREGISTREMENT CAMION -->
+  <div class="modal" *ngIf="showModal">
     <div class="truck-modal">
-        <div class="truck-modal-header">
-            <h2 class="truck-modal-title">Enregistrer un nouveau camion</h2>
-            <button type="button" class="truck-modal-close" aria-label="Fermer" (click)="closeModal()">
-                <span class="material-symbols-outlined">close</span>
-            </button>
+      <div class="truck-modal-header">
+        <h2 class="truck-modal-title">Enregistrer un nouveau camion</h2>
+        <button type="button" class="truck-modal-close" aria-label="Fermer" (click)="closeModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="truck-modal-body">
+        <!-- Entrepôt -->
+        <div class="truck-field">
+          <label class="truck-label" for="entrepot">Entrepôt</label>
+          <select id="entrepot" class="truck-select" disabled>
+            <option selected>{{ entrepot.nom }}</option>
+          </select>
         </div>
 
-        <div class="truck-modal-body">
-            <!-- Entrepôt -->
-            <div class="truck-field">
-                <label class="truck-label" for="entrepot">Entrepôt</label>
-                <select id="entrepot" class="truck-select" disabled>
-                    <option selected>{{ entrepot.nom }}</option>
-                </select>
-            </div>
-
-            <!-- Immatriculation -->
-            <div class="truck-field">
-                <label class="truck-label" for="immatriculation"> Immatriculation du camion </label>
-                <input id="immatriculation" type="text" class="truck-input" placeholder="Ex : AB-123-CD"
-                    [(ngModel)]="newTruck.immatriculation" name="immatriculation" />
-            </div>
-
-            <!-- Transporteur -->
-            <div class="truck-field">
-                <label class="truck-label" for="transporteur"> Transporteur / Chauffeur </label>
-                <input id="transporteur" type="text" class="truck-input"
-                    placeholder="Nom du transporteur ou du chauffeur" [(ngModel)]="newTruck.transporteur"
-                    name="transporteur" />
-            </div>
-
-            <!-- N° fiche de transfert -->
-            <div class="truck-field">
-                <label class="truck-label" for="transfert"> N° fiche de transfert </label>
-                <input id="transfert" type="text" class="truck-input" placeholder="Ex : FT-2025-001"
-                    [(ngModel)]="newTruck.transfert" name="transfert" />
-            </div>
-
-            <!-- Coopérative -->
-            <div class="truck-field">
-                <label class="truck-label" for="coperative"> Nom coopérative </label>
-                <input id="coperative" type="text" class="truck-input" placeholder="Ex : AMIAN"
-                    [(ngModel)]="newTruck.coperative" name="coperative" />
-            </div>
-
-            <!-- Confirmation -->
-            <div class="truck-modal-footer">
-                <div class="truck-confirm" *ngIf="showSuccessBanner">
-                    <span class="material-symbols-outlined truck-confirm-icon"> check_circle </span>
-                    <div>
-                        <p class="truck-confirm-title">Camion enregistré</p>
-                        <p class="truck-confirm-sub">Statut : {{ lastSavedStatutLabel }}</p>
-                    </div>
-                </div>
-
-                <button type="button" class="truck-submit" (click)="saveTruck()">
-                    Enregistrer l’arrivée
-                </button>
-            </div>
+        <!-- Immatriculation -->
+        <div class="truck-field">
+          <label class="truck-label" for="immatriculation"> Immatriculation du camion </label>
+          <input
+            id="immatriculation"
+            type="text"
+            class="truck-input"
+            placeholder="Ex : AB-123-CD"
+            [(ngModel)]="newTruck.immatriculation"
+            name="immatriculation"
+          />
         </div>
+
+        <!-- Transporteur -->
+        <div class="truck-field">
+          <label class="truck-label" for="transporteur"> Transporteur / Chauffeur </label>
+          <input
+            id="transporteur"
+            type="text"
+            class="truck-input"
+            placeholder="Nom du transporteur ou du chauffeur"
+            [(ngModel)]="newTruck.transporteur"
+            name="transporteur"
+          />
+        </div>
+
+        <!-- N° fiche de transfert -->
+        <div class="truck-field">
+          <label class="truck-label" for="transfert"> N° fiche de transfert </label>
+          <input
+            id="transfert"
+            type="text"
+            class="truck-input"
+            placeholder="Ex : FT-2025-001"
+            [(ngModel)]="newTruck.transfert"
+            name="transfert"
+          />
+        </div>
+
+        <!-- Coopérative -->
+        <div class="truck-field">
+          <label class="truck-label" for="coperative"> Nom coopérative </label>
+          <input
+            id="coperative"
+            type="text"
+            class="truck-input"
+            placeholder="Ex : AMIAN"
+            [(ngModel)]="newTruck.coperative"
+            name="coperative"
+          />
+        </div>
+
+        <!-- Confirmation -->
+        <div class="truck-modal-footer">
+          <div class="truck-confirm" *ngIf="showSuccessBanner">
+            <span class="material-symbols-outlined truck-confirm-icon"> check_circle </span>
+            <div>
+              <p class="truck-confirm-title">Camion enregistré</p>
+              <p class="truck-confirm-sub">Statut : {{ lastSavedStatutLabel }}</p>
+            </div>
+          </div>
+
+          <button type="button" class="truck-submit" (click)="saveTruck()">
+            Enregistrer l’arrivée
+          </button>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
 
   <!-- ============================= -->
   <!-- MODALE : MODIFIER CAMION -->
   <!-- ============================= -->
   <div class="modal" *ngIf="showEditModal">
     <div class="truck-modal">
-
       <div class="truck-modal-header">
         <h2 class="truck-modal-title">Modifier camion</h2>
 
-        <button class="truck-modal-close" (click)="showEditModal=false">
+        <button class="truck-modal-close" (click)="showEditModal = false">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-
         <div class="truck-field">
           <label class="truck-label">Immatriculation</label>
           <input class="truck-input" [(ngModel)]="editTruckData.immatriculation" />
@@ -339,13 +377,11 @@
           <label class="truck-label">Coopérative</label>
           <input class="truck-input" [(ngModel)]="editTruckData.coperative" />
         </div>
-
       </div>
 
       <div class="truck-modal-footer">
         <button class="truck-submit" (click)="saveEdit()">Enregistrer</button>
       </div>
-
     </div>
   </div>
 
@@ -354,16 +390,14 @@
   <!-- ============================= -->
   <div class="modal" *ngIf="showAnalysisModal">
     <div class="truck-modal">
-
       <div class="truck-modal-header">
         <h2 class="truck-modal-title">Résultats analyses</h2>
-        <button class="truck-modal-close" (click)="showAnalysisModal=false">
+        <button class="truck-modal-close" (click)="showAnalysisModal = false">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-
         <div class="truck-field">
           <label class="truck-label">KOR</label>
           <input class="truck-input" [(ngModel)]="analysisData.kor" />
@@ -373,13 +407,11 @@
           <label class="truck-label">TH</label>
           <input class="truck-input" [(ngModel)]="analysisData.th" />
         </div>
-
       </div>
 
       <div class="truck-modal-footer">
         <button class="truck-submit" (click)="submitAnalysis()">Envoyer</button>
       </div>
-
     </div>
   </div>
 
@@ -388,17 +420,15 @@
   <!-- ============================= -->
   <div class="modal" *ngIf="showProductsModal">
     <div class="truck-modal">
-
       <div class="truck-modal-header">
         <h2 class="truck-modal-title">Renseigner détails produits</h2>
 
-        <button class="truck-modal-close" (click)="showProductsModal=false">
+        <button class="truck-modal-close" (click)="showProductsModal = false">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-
         <div class="truck-field">
           <label class="truck-label">Nom du produit</label>
           <input class="truck-input" [(ngModel)]="productForm.produit" />
@@ -423,13 +453,11 @@
           <label class="truck-label">Observations</label>
           <textarea class="truck-input" rows="3" [(ngModel)]="productForm.observations"></textarea>
         </div>
-
       </div>
 
       <div class="truck-modal-footer">
         <button class="truck-submit" (click)="saveProducts()">Enregistrer</button>
       </div>
-
     </div>
   </div>
 
@@ -438,17 +466,15 @@
   <!-- ============================= -->
   <div class="modal" *ngIf="showHistoryModal">
     <div class="truck-modal">
-
       <div class="truck-modal-header">
         <h2 class="truck-modal-title">Historique du camion</h2>
 
-        <button class="truck-modal-close" (click)="showHistoryModal=false">
+        <button class="truck-modal-close" (click)="showHistoryModal = false">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-
         <div *ngIf="!selectedTruckForHistory?.history?.length">
           <p class="cell-muted">Aucun événement enregistré.</p>
         </div>
@@ -457,17 +483,14 @@
           <p class="history-event">{{ h.event }}</p>
           <p class="history-meta">
             <strong>{{ h.by === 'gerant' ? 'Gérant' : 'Administrateur' }}</strong>
-            • {{ h.date | date:'dd/MM/yyyy HH:mm' }}
+            • {{ h.date | date : 'dd/MM/yyyy HH:mm' }}
           </p>
         </div>
-
       </div>
 
       <div class="truck-modal-footer">
-        <button class="truck-submit" (click)="showHistoryModal=false">Fermer</button>
+        <button class="truck-submit" (click)="showHistoryModal = false">Fermer</button>
       </div>
-
     </div>
   </div>
-
 </div>
