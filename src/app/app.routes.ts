@@ -11,6 +11,7 @@ import { UserDashboard } from './user-dashboard/user-dashboard';
 import { UserDashboardMain } from './user-dashboard-main/user-dashboard-main';
 import { UserHistorique } from './user-historique/user-historique';
 import { UserEntrepot } from './user-entrepot/user-entrepot';
+import { UsersManager } from './users-manager/users-manager';
 
 export const routes: Routes = [
     {
@@ -47,6 +48,10 @@ export const routes: Routes = [
                 path: 'statistique',
                 component: Statistique,
             },
+            {
+                path: 'userManager',
+                component: UsersManager
+            }
         ],
     },
     {
