@@ -86,6 +86,18 @@ export class UserHistorique implements OnInit {
     let trucks: StoredTruck[] = [];
     try {
       trucks = JSON.parse(rawTrucks) as StoredTruck[];
+      // ✅ Filtrage user : uniquement l'entrepôt assigné
+      const rawUser = localStorage.getItem('currentUser');
+      let currentUser: any = null;
+      try {
+        currentUser = rawUser ? JSON.parse(rawUser) : null;
+      } catch {
+        currentUser = null;
+      }
+
+      if (currentUser?.entrepotId !== null && currentUser?.entrepotId !== undefined) {
+        trucks = trucks.filter((t) => t.entrepotId === currentUser.entrepotId);
+      }
     } catch (e) {
       console.error('Erreur parsing trucks', e);
       trucks = [];
@@ -93,8 +105,7 @@ export class UserHistorique implements OnInit {
 
     // 3) Construction des lignes d’historique
     this.allRows = trucks.map((t) => {
-      const warehouse =
-        this.warehousesOptions.find((w) => w.id === t.entrepotId) ?? null;
+      const warehouse = this.warehousesOptions.find((w) => w.id === t.entrepotId) ?? null;
 
       return {
         entrepotId: t.entrepotId,
@@ -111,9 +122,7 @@ export class UserHistorique implements OnInit {
     });
 
     // Tri : le plus récent en premier
-    this.allRows.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    this.allRows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   // Applique tous les filtres à la fois
@@ -126,8 +135,7 @@ export class UserHistorique implements OnInit {
     this.filteredRows = this.allRows.filter((row) => {
       // 1) Filtre texte (immat OU transporteur)
       if (search) {
-        const haystack =
-          (row.immatriculation + ' ' + row.transporteur).toLowerCase();
+        const haystack = (row.immatriculation + ' ' + row.transporteur).toLowerCase();
         if (!haystack.includes(search)) {
           return false;
         }

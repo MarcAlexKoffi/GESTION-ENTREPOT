@@ -97,9 +97,7 @@ export class UsersManager implements OnInit {
       this.users = [];
     }
     // tri: plus récent en premier
-    this.users.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    this.users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   private saveUsers(): void {
@@ -160,7 +158,7 @@ export class UsersManager implements OnInit {
   getInitials(nom: string): string {
     const parts = nom.trim().split(/\s+/).filter(Boolean);
     const first = parts[0]?.[0] ?? '';
-    const second = parts.length > 1 ? parts[1][0] : (parts[0]?.[1] ?? '');
+    const second = parts.length > 1 ? parts[1][0] : parts[0]?.[1] ?? '';
     return (first + second).toUpperCase();
   }
 
@@ -241,25 +239,23 @@ export class UsersManager implements OnInit {
 
   saveUserFromModal(): void {
     // validations simples
-    if (!this.formUser.nom.trim()) {
-      this.showToast('Veuillez saisir le nom.');
-      return;
-    }
-    if (!this.formUser.username.trim()) {
-      this.showToast('Veuillez saisir un identifiant.');
-      return;
-    }
-    if (!this.formUser.password.trim()) {
-      this.showToast('Veuillez saisir un mot de passe.');
-      return;
-    }
+    // --- Entrepôt obligatoire pour tous sauf admin
+if (this.formUser.role !== 'admin') {
+  if (this.warehouses.length === 0) {
+    this.showToast('Créez d’abord un entrepôt avant d’ajouter des utilisateurs.');
+    return;
+  }
+
+  if (this.formUser.entrepotId === null) {
+    this.showToast('Veuillez affecter un entrepôt à cet utilisateur.');
+    return;
+  }
+}
 
     // username unique
     const usernameLower = this.formUser.username.trim().toLowerCase();
     const conflict = this.users.find(
-      (u) =>
-        u.username.toLowerCase() === usernameLower &&
-        u.id !== this.formUser.id
+      (u) => u.username.toLowerCase() === usernameLower && u.id !== this.formUser.id
     );
     if (conflict) {
       this.showToast('Identifiant déjà utilisé. Choisissez-en un autre.');

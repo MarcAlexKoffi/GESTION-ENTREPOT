@@ -79,10 +79,23 @@ export class Login {
       return;
     }
 
-    // session (sans backend)
-    localStorage.setItem(this.currentUserKey, JSON.stringify(found));
+   // session (sans backend)
+localStorage.setItem(this.currentUserKey, JSON.stringify(found));
 
-    // redirection simple (adapte si ton routing diffère)
-    this.router.navigate(['/dashboard/dashboard-main']);
+// ✅ Redirection selon rôle / entrepôt
+if (found.role === 'admin') {
+  this.router.navigate(['/dashboard/dashboard-main']);
+  return;
+}
+
+if (found.entrepotId !== null) {
+  this.router.navigate(['/userdashboard/userentrepot', found.entrepotId]);
+  return;
+}
+
+// fallback (au cas où un ancien user sans entrepôt existe déjà)
+this.errorMessage = "Votre compte n'a pas d'entrepôt assigné. Contactez un administrateur.";
+localStorage.removeItem(this.currentUserKey);
+
   }
 }

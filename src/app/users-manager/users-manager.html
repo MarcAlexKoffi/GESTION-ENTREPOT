@@ -185,11 +185,11 @@
                   <div class="truck-field">
                     <label class="truck-label">Entrepôt</label>
                     <select class="truck-select" [(ngModel)]="formUser.entrepotId" [disabled]="warehouses.length === 0">
-                      <option [ngValue]="null">—</option>
+                      <option *ngIf="formUser.role === 'admin'" [ngValue]="null">—</option>
                       <option *ngFor="let w of warehouses" [ngValue]="w.id">{{ w.name }}</option>
                     </select>
                   </div>
-
+                  
                   <div class="truck-field">
                     <label class="truck-label">Statut</label>
                     <select class="truck-select" [(ngModel)]="formUser.status">

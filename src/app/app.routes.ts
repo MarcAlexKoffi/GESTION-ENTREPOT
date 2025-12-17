@@ -80,7 +80,7 @@ export const routes: Routes = [
                 component: UserHistorique
             },
             {
-                path: 'userentrepot',
+                path: 'userentrepot/:id',
                 component: UserEntrepot
             }
         ]
