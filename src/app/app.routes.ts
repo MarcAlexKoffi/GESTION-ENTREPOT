@@ -16,7 +16,7 @@ import { UsersManager } from './users-manager/users-manager';
 export const routes: Routes = [
     {
         path: '',
-        redirectTo: 'login',
+        redirectTo: 'dashboard',
         pathMatch: 'full',
     },
     {
