@@ -110,7 +110,9 @@
     <div class="warehouse-modal__panel">
       <!-- En-tête -->
       <div class="warehouse-modal__header">
-        <h2 class="warehouse-modal__title">Nouvel entrepôt</h2>
+        <h2 class="warehouse-modal__title">
+          {{ editingWarehouseId ? 'Modifier l’entrepôt' : 'Nouvel entrepôt' }}
+        </h2>
         <button
           type="button"
           class="warehouse-modal__close"
@@ -124,7 +126,11 @@
       <!-- Corps de la modale -->
       <div class="warehouse-modal__body">
         <p class="warehouse-modal__intro">
-          Renseignez les informations ci-dessous pour créer un nouvel entrepôt.
+          {{
+            editingWarehouseId
+              ? 'Modifiez les informations de l’entrepôt sélectionné.'
+              : 'Renseignez les informations ci-dessous pour créer un nouvel entrepôt.'
+          }}
         </p>
 
         <!-- Nom -->
@@ -211,12 +217,8 @@
           Annuler
         </button>
 
-        <button
-          type="button"
-          class="warehouse-button warehouse-button--primary"
-          (click)="saveWarehouse()"
-        >
-          Créer l’entrepôt
+        <button class="warehouse-button warehouse-button--primary" (click)="saveWarehouse()">
+          {{ editingWarehouseId ? 'Enregistrer les modifications' : 'Créer l’entrepôt' }}
         </button>
       </div>
     </div>

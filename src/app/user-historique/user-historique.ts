@@ -86,7 +86,7 @@ export class UserHistorique implements OnInit {
     let trucks: StoredTruck[] = [];
     try {
       trucks = JSON.parse(rawTrucks) as StoredTruck[];
-      // ✅ Filtrage user : uniquement l'entrepôt assigné
+      // Filtrage user : uniquement l'entrepôt assigné
       const rawUser = localStorage.getItem('currentUser');
       let currentUser: any = null;
       try {

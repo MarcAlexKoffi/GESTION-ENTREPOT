@@ -57,10 +57,10 @@
           <!-- NOTIFICATION BUTTON -->
           <div
             class="notification-wrapper"
-            (click)="toggleNotifications()"
             style="position: relative"
+            (click)="$event.stopPropagation()"
           >
-            <button class="icon-button" type="button">
+            <button class="icon-button" type="button" (click)="toggleNotifications($event)">
               <span class="material-symbols-outlined">notifications</span>
 
               <!-- BADGE NOTIF -->
@@ -69,7 +69,7 @@
               </span>
             </button>
             <!-- DROPDOWN -->
-            <div class="notif-dropdown" *ngIf="showNotifDropdown">
+            <div class="notif-dropdown" *ngIf="showNotifDropdown" (click)="$event.stopPropagation()">
               <p class="notif-title">Demandes en attente</p>
               <div *ngIf="notifications.length === 0" class="notif-empty">
                 Aucune demande en attente.

@@ -120,10 +120,144 @@ export class UserEntrepot implements OnInit {
   };
 
   constructor(private route: ActivatedRoute) {}
+// ===============================
+// FILTRES (toolbar)
+// ===============================
+filterSearch = '';
+selectedPeriod: 'all' | 'today' | '7days' | '30days' = 'today';
+selectedStatus: 'all' | TruckStatus = 'all';
+
+showPeriodMenu = false;
+showStatusMenu = false;
+
+filteredTrucks: StoredTruck[] = [];
+
+get periodLabel(): string {
+  switch (this.selectedPeriod) {
+    case 'today': return "Aujourd'hui";
+    case '7days': return '7 derniers jours';
+    case '30days': return '30 derniers jours';
+    default: return 'Toutes périodes';
+  }
+}
+
+get statusLabel(): string {
+  return this.selectedStatus === 'all' ? 'Tous statuts' : this.selectedStatus;
+}
+
+togglePeriodMenu(): void {
+  this.showPeriodMenu = !this.showPeriodMenu;
+  this.showStatusMenu = false;
+}
+
+toggleStatusMenu(): void {
+  this.showStatusMenu = !this.showStatusMenu;
+  this.showPeriodMenu = false;
+}
+
+setPeriod(p: 'all' | 'today' | '7days' | '30days'): void {
+  this.selectedPeriod = p;
+  this.showPeriodMenu = false;
+  this.applyFilters();
+}
+
+setStatus(s: 'all' | TruckStatus): void {
+  this.selectedStatus = s;
+  this.showStatusMenu = false;
+  this.applyFilters();
+}
+
+// Ancienne logique getList() renommée en "getBaseListForTab"
+private getBaseListForTab(): StoredTruck[] {
+  switch (this.currentTab) {
+    case 'enregistres':
+      return this.trucks.filter((t) => t.statut === 'Enregistré');
+
+    case 'attente':
+      return this.trucks.filter((t) => t.statut === 'En attente');
+
+    case 'valides':
+      return this.trucks.filter(
+        (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+      );
+
+    case 'refoules':
+      return this.trucks.filter(
+        (t: any) =>
+          t.statut === 'Refoulé' ||
+          (t.statut === 'Annulé' &&
+            (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+              t.advancedStatus === 'REFUSE_RENVOYE'))
+      );
+
+    case 'acceptes':
+      return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
+
+    case 'historique':
+      return this.trucks.filter((t) => t.history.length > 0);
+
+    default:
+      return [];
+  }
+}
+
+applyFilters(): void {
+  const base = this.getBaseListForTab();
+
+  const search = this.filterSearch.trim().toLowerCase();
+  const now = new Date();
+
+  // helper date
+  const isToday = (iso: string) => {
+    const d = new Date(iso);
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+
+  const inLastDays = (iso: string, days: number) => {
+    const d = new Date(iso).getTime();
+    const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
+    return d >= limit;
+  };
+
+  this.filteredTrucks = base.filter((t) => {
+    // 1) Recherche
+    if (search) {
+      const haystack = (
+        (t.immatriculation ?? '') + ' ' +
+        (t.transporteur ?? '') + ' ' +
+        (t.transfert ?? '') + ' ' +
+        ((t as any).coperative ?? '')
+      ).toLowerCase();
+
+      if (!haystack.includes(search)) return false;
+    }
+
+    // 2) Statut
+    if (this.selectedStatus !== 'all') {
+      if (t.statut !== this.selectedStatus) return false;
+    }
+
+    // 3) Période (basée sur createdAt)
+    if (this.selectedPeriod !== 'all') {
+      if (!t.createdAt) return false;
+
+      if (this.selectedPeriod === 'today' && !isToday(t.createdAt)) return false;
+      if (this.selectedPeriod === '7days' && !inLastDays(t.createdAt, 7)) return false;
+      if (this.selectedPeriod === '30days' && !inLastDays(t.createdAt, 30)) return false;
+    }
+
+    return true;
+  });
+}
 
   ngOnInit(): void {
     this.loadEntrepot();
     this.loadTrucksFromStorage();
+    this.applyFilters();
   }
 
   // =========================================================

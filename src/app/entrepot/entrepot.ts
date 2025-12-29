@@ -61,6 +61,8 @@ export class Entrepot implements OnInit {
   // Ajout de la nouvelle catégorie RENVOYÉS
   currentTab: 'pending' | 'validated' | 'accepted' | 'cancelled' | 'renvoyes' = 'pending';
   showDetailsModal = false;
+  showHistoryModal = false;
+  historyTruck: Truck | null = null;
 
   trucks: Truck[] = [];
   selectedTruck: Truck | null = null;
@@ -166,75 +168,71 @@ export class Entrepot implements OnInit {
     localStorage.setItem(this.commentStorageKey, JSON.stringify(all));
   }
   // ================================================================
-// HEURE PAR CATÉGORIE (colonne "Heure arrivée")
-// ================================================================
-private formatHourFromIso(iso?: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-private findHistoryDate(truck: Truck, event: string): string | undefined {
-  const list = (truck as any).history || [];
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i]?.event === event && list[i]?.date) return list[i].date;
+  // HEURE PAR CATÉGORIE (colonne "Heure arrivée")
+  // ================================================================
+  private formatHourFromIso(iso?: string): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-  return undefined;
-}
 
-getHourForCurrentTab(t: Truck): string {
-  const fallback = t.createdAt || '';
-
-  switch (this.currentTab) {
-    case 'pending': {
-      const iso =
-        this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
+  private findHistoryDate(truck: Truck, event: string): string | undefined {
+    const list = (truck as any).history || [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i]?.event === event && list[i]?.date) return list[i].date;
     }
-
-    case 'validated': {
-      const iso =
-        this.findHistoryDate(t, 'Validation administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'accepted': {
-      const iso =
-        (t as any).finalAcceptedAt ||
-        this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'cancelled': {
-      const iso =
-        (t as any).refusedAt ||
-        this.findHistoryDate(t, 'Refus administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'renvoyes': {
-      const iso =
-        (t as any).renvoyeAt ||
-        this.findHistoryDate(t, 'Camion renvoyé par le gérant') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    default:
-      return this.formatHourFromIso(t.createdAt || fallback);
+    return undefined;
   }
-}
 
+  getHourForCurrentTab(t: Truck): string {
+    const fallback = t.createdAt || '';
+
+    switch (this.currentTab) {
+      case 'pending': {
+        const iso =
+          this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'validated': {
+        const iso = this.findHistoryDate(t, 'Validation administrateur') || t.createdAt || fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'accepted': {
+        const iso =
+          (t as any).finalAcceptedAt ||
+          this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'cancelled': {
+        const iso =
+          (t as any).refusedAt ||
+          this.findHistoryDate(t, 'Refus administrateur') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'renvoyes': {
+        const iso =
+          (t as any).renvoyeAt ||
+          this.findHistoryDate(t, 'Camion renvoyé par le gérant') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      default:
+        return this.formatHourFromIso(t.createdAt || fallback);
+    }
+  }
 
   // ================================================================
   // ONGLET
@@ -327,10 +325,10 @@ getHourForCurrentTab(t: Truck): string {
   refuseTruck(): void {
     if (!this.selectedTruck) return;
 
-    // ✅ Statut ADMIN (utilisé pour les onglets Refoulés / Renvoyés)
+    // Statut ADMIN (utilisé pour les onglets Refoulés / Renvoyés)
     this.selectedTruck.statut = 'Annulé';
 
-    // ✅ Statut métier avancé (gérant)
+    // Statut métier avancé (gérant)
     this.selectedTruck.advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
     this.selectedTruck.refusedAt = new Date().toISOString();
 
@@ -350,6 +348,61 @@ getHourForCurrentTab(t: Truck): string {
     this.saveTrucks();
     this.closeDetailsModal();
   }
+// ================================================================
+// HISTORIQUE (ADMIN) – même logique que côté user
+// ================================================================
+openHistoryModal(truck: Truck): void {
+  this.historyTruck = truck;
+  this.showHistoryModal = true;
+}
+
+closeHistoryModal(): void {
+  this.showHistoryModal = false;
+  this.historyTruck = null;
+}
+// ================================================================
+// IMPRESSION CAMION
+// ================================================================
+printSelectedTruck(): void {
+  if (!this.selectedTruck) return;
+
+  const truck = this.selectedTruck;
+
+  const content = `
+    <h2>Détails du camion</h2>
+    <p><strong>Immatriculation :</strong> ${truck.immatriculation}</p>
+    <p><strong>Transporteur :</strong> ${truck.transporteur}</p>
+    <p><strong>Coopérative :</strong> ${truck.coperative ?? '—'}</p>
+    <p><strong>Entrepôt :</strong> ${this.entrepot.nom}</p>
+    <p><strong>Statut :</strong> ${truck.statut}</p>
+    <p><strong>Heure d’arrivée :</strong> ${truck.heureArrivee}</p>
+  `;
+
+  const win = window.open('', '_blank', 'width=800,height=600');
+  if (!win) return;
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>Impression camion</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; }
+          h2 { margin-bottom: 16px; }
+          p { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        ${content}
+        <script>
+          window.print();
+          window.onafterprint = () => window.close();
+        </script>
+      </body>
+    </html>
+  `);
+
+  win.document.close();
+}
 
   // ================================================================
   // STATISTIQUES
@@ -383,5 +436,16 @@ getHourForCurrentTab(t: Truck): string {
     return this.trucks.filter(
       (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
     ).length;
+  }
+  isAcceptedFinal(truck: Truck): boolean {
+    return truck.advancedStatus === 'ACCEPTE_FINAL';
+  }
+
+  isValidatedOnly(truck: Truck): boolean {
+    return truck.statut === 'Validé' && truck.advancedStatus !== 'ACCEPTE_FINAL';
+  }
+
+  isRefused(truck: Truck): boolean {
+    return truck.statut === 'Annulé';
   }
 }

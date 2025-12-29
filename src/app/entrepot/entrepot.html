@@ -138,7 +138,7 @@
                 <tr>
                   <th>Immatriculation</th>
                   <th>Transporteur</th>
-                  <th>Heure arrivée</th>
+                  <th>Heure</th>
                   <th>Statut</th>
                   <th class="cell-actions">Actions</th>
                 </tr>
@@ -156,7 +156,7 @@
                 <tr *ngFor="let t of filteredTrucks">
                   <td class="cell-main">{{ t.immatriculation }}</td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
-                 <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
+                  <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
                   <td class="cell-status">
                     <span
                       *ngIf="t.statut === 'En attente'"
@@ -169,7 +169,7 @@
                       *ngIf="t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'"
                       class="status-pill status-pill--active"
                     >
-                        Validé
+                      Validé
                     </span>
 
                     <span
@@ -202,77 +202,127 @@
     </div>
   </div>
 
-  <!-- MODAL DETAILS ADMIN -->
   <div class="modal" *ngIf="showDetailsModal">
     <div class="truck-modal">
+      <!-- HEADER -->
       <div class="truck-modal-header">
-        <h2 class="truck-modal-title">Détails du camion</h2>
-        <button
-          type="button"
-          class="truck-modal-close"
-          aria-label="Fermer"
-          (click)="closeDetailsModal()"
-        >
-          <span class="material-symbols-outlined">close</span>
-        </button>
+        <h2>Détails du camion</h2>
+        <button class="close-btn" (click)="closeDetailsModal()">✕</button>
       </div>
 
-      <div class="truck-modal-body">
-        <div class="truck-field">
-          <label class="truck-label">Immatriculation</label>
-          <input class="truck-input" [value]="selectedTruck?.immatriculation" disabled />
+      <!-- BODY -->
+      <div class="truck-modal-body" *ngIf="selectedTruck">
+        <div class="field">
+          <label>Immatriculation</label>
+          <input class="truck-input" [value]="selectedTruck.immatriculation" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">Transporteur</label>
-          <input class="truck-input" [value]="selectedTruck?.transporteur" disabled />
+        <div class="field">
+          <label>Transporteur</label>
+          <input class="truck-input" [value]="selectedTruck.transporteur" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">Coopérative</label>
-          <input class="truck-input" [value]="selectedTruck?.coperative" disabled />
+        <div class="field">
+          <label>Coopérative</label>
+          <input class="truck-input" [value]="selectedTruck.coperative || '—'" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">Fiche Transfert</label>
-          <input class="truck-input" [value]="selectedTruck?.transfert" disabled />
+        <div class="field">
+          <label>Fiche de transfert</label>
+          <input class="truck-input" [value]="selectedTruck.transfert" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">KOR</label>
-          <input class="truck-input" [value]="selectedTruck?.kor" disabled />
+        <div class="field">
+          <label>KOR</label>
+          <input class="truck-input" [value]="selectedTruck.kor" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">TH</label>
-          <input class="truck-input" [value]="selectedTruck?.th" disabled />
+        <div class="field">
+          <label>Heure d’arrivée</label>
+          <input class="truck-input" [value]="selectedTruck.heureArrivee" disabled />
         </div>
 
-        <div class="truck-field">
-          <label class="truck-label">Commentaire admin</label>
-          <textarea class="truck-input" rows="3" [(ngModel)]="adminComment"></textarea>
+        <!-- COMMENTAIRE ADMIN -->
+        <div class="field">
+          <label>Commentaire administrateur</label>
+          <textarea
+            class="truck-textarea"
+            [(ngModel)]="adminComment"
+            placeholder="Ajouter un commentaire (visible par le gérant)"
+          ></textarea>
         </div>
       </div>
 
+      <!-- FOOTER (ACTIONS CONTEXTUELLES) -->
       <div class="truck-modal-footer">
-        <button
-          type="button"
-          class="truck-submit"
-          style="background-color: #4caf50"
-          (click)="validateTruck()"
-        >
-          Valider
-        </button>
+        <!-- EN ATTENTE -->
+        <ng-container *ngIf="selectedTruck?.statut === 'En attente'">
+          <button class="truck-submit success" (click)="validateTruck()">Valider</button>
+          <button class="truck-submit danger" (click)="refuseTruck()">Refouler</button>
+        </ng-container>
 
-        <button
-          type="button"
-          class="truck-submit"
-          style="background-color: #e53935"
-          (click)="refuseTruck()"
-        >
-          Refouler
-        </button>
+        <!-- VALIDÉ -->
+        <ng-container *ngIf="isValidatedOnly(selectedTruck!)">
+          <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
+            Voir historique
+          </button>
+        </ng-container>
+
+        <!-- ACCEPTÉ -->
+        <ng-container *ngIf="isAcceptedFinal(selectedTruck!)">
+          <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
+            Voir historique
+          </button>
+          <button class="truck-submit" (click)="printSelectedTruck()">Imprimer</button>
+        </ng-container>
+
+        <!-- REFOULÉ -->
+        <ng-container *ngIf="isRefused(selectedTruck!)">
+          <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
+            Voir historique
+          </button>
+        </ng-container>
       </div>
     </div>
   </div>
+
+  <!-- ============================
+     MODALE HISTORIQUE CAMION
+     ============================ -->
+<div class="modal" *ngIf="showHistoryModal">
+  <div class="truck-modal">
+
+    <div class="truck-modal-header">
+      <h2>Historique du camion</h2>
+      <button class="close-btn" (click)="closeHistoryModal()">✕</button>
+    </div>
+
+    <div class="truck-modal-body" *ngIf="historyTruck">
+      <div
+        *ngIf="!historyTruck.history || historyTruck.history.length === 0"
+        class="notif-empty"
+      >
+        Aucun historique disponible.
+      </div>
+
+      <div
+        *ngFor="let h of historyTruck.history"
+        class="history-item"
+      >
+        <div class="history-event">{{ h.event }}</div>
+        <div class="history-meta">
+          {{ h.by }} — {{ h.date | date:'short' }}
+        </div>
+      </div>
+    </div>
+
+    <div class="truck-modal-footer">
+      <button class="truck-submit" (click)="closeHistoryModal()">
+        Fermer
+      </button>
+    </div>
+
+  </div>
+</div>
+
 </div>

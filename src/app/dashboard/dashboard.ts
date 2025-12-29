@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 
 @Component({
@@ -10,6 +10,7 @@ import { Router, RouterModule } from '@angular/router';
 })
 export class Dashboard {
 
+  
   // ===============================================================
   // NOTIFICATIONS
   // ===============================================================
@@ -43,8 +44,8 @@ export class Dashboard {
     let warehouses = rawWarehouses ? JSON.parse(rawWarehouses) : [];
 
     // On charge :
-    // 1️⃣ Tous les camions "En attente" (analyses envoyées)
-    // 2️⃣ Tous les camions renvoyés vers l'admin (unreadForAdmin = true)
+    // Tous les camions "En attente" (analyses envoyées)
+    // Tous les camions renvoyés vers l'admin (unreadForAdmin = true)
     this.notifications = trucks
       .filter((t: any) =>
         t.statut === 'En attente' ||
@@ -70,9 +71,19 @@ export class Dashboard {
   // ===============================================================
   // OUVERTURE / FERMETURE DU DROPDOWN
   // ===============================================================
-  toggleNotifications() {
-    this.showNotifDropdown = !this.showNotifDropdown;
-  }
+ toggleNotifications(event: MouseEvent) {
+  event.stopPropagation(); // empêche la fermeture immédiate
+  this.showNotifDropdown = !this.showNotifDropdown;
+}
+@HostListener('document:click')
+closeNotifOnOutsideClick(): void {
+  this.showNotifDropdown = false;
+}
+@HostListener('document:keydown.escape')
+closeNotifOnEscape(): void {
+  this.showNotifDropdown = false;
+}
+
 
   // ===============================================================
   // QUAND L'ADMIN CLIQUE SUR UNE NOTIFICATION

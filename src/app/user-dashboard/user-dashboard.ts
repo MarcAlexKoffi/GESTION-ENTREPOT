@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 
 type UserRole = 'admin' | 'operator' | 'driver' | 'security';
@@ -140,6 +140,12 @@ export class UserDashboard implements OnInit {
   toggleNotifications(): void {
     this.showNotifDropdown = !this.showNotifDropdown;
   }
+@HostListener('document:click')
+closeNotifDropdownOnOutsideClick(): void {
+  if (this.showNotifDropdown) {
+    this.showNotifDropdown = false;
+  }
+}
 
   openNotification(n: any): void {
     // Marquer comme lu

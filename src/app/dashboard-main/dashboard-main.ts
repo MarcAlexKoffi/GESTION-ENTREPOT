@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
@@ -77,6 +77,11 @@ export class DashboardMain implements OnInit {
 
     // Recalcule les stats à partir des camions enregistrés
     this.updateWarehouseStatsFromTrucks();
+  }
+  // Ferme le menu ⋮ quand on clique ailleurs sur la page
+  @HostListener('document:click')
+  closeMenuOnOutsideClick(): void {
+    this.actionsMenuWarehouseId = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -183,9 +188,7 @@ export class DashboardMain implements OnInit {
     if (rawTrucks) {
       try {
         const allTrucks = JSON.parse(rawTrucks) as StoredTruck[];
-        const filteredTrucks = allTrucks.filter(
-          (t) => t.entrepotId !== card.id
-        );
+        const filteredTrucks = allTrucks.filter((t) => t.entrepotId !== card.id);
         localStorage.setItem('trucks', JSON.stringify(filteredTrucks));
       } catch (e) {
         console.error('Erreur de lecture du localStorage (trucks)', e);
@@ -201,18 +204,13 @@ export class DashboardMain implements OnInit {
   // ---------------------------------------------------------------------------
   saveWarehouse(): void {
     if (!this.newWarehouse.name || !this.newWarehouse.location) {
-      alert(
-        'Merci de saisir au moins le nom et la localisation de l’entrepôt.'
-      );
+      alert('Merci de saisir au moins le nom et la localisation de l’entrepôt.');
       return;
     }
 
     // --- CAS 1 : CRÉATION ---
     if (this.mode === 'create') {
-      const nextId =
-        this.cards.length > 0
-          ? this.cards[this.cards.length - 1].id + 1
-          : 1;
+      const nextId = this.cards.length > 0 ? this.cards[this.cards.length - 1].id + 1 : 1;
 
       const warehouse: CardInfo = {
         id: nextId,
@@ -231,26 +229,16 @@ export class DashboardMain implements OnInit {
 
     // --- CAS 2 : MODIFICATION ---
     else if (this.mode === 'edit' && this.editingWarehouseId !== null) {
-      const index = this.cards.findIndex(
-        (c) => c.id === this.editingWarehouseId
-      );
+      const index = this.cards.findIndex((c) => c.id === this.editingWarehouseId);
       if (index !== -1) {
         this.cards[index] = {
           ...this.cards[index],
           name: this.newWarehouse.name as string,
           location: this.newWarehouse.location as string,
-          imageUrl:
-            (this.newWarehouse.imageUrl as string) ||
-            this.cards[index].imageUrl,
-          pending: Number(
-            this.newWarehouse.pending ?? this.cards[index].pending
-          ),
-          active: Number(
-            this.newWarehouse.active ?? this.cards[index].active
-          ),
-          discharged: Number(
-            this.newWarehouse.discharged ?? this.cards[index].discharged
-          ),
+          imageUrl: (this.newWarehouse.imageUrl as string) || this.cards[index].imageUrl,
+          pending: Number(this.newWarehouse.pending ?? this.cards[index].pending),
+          active: Number(this.newWarehouse.active ?? this.cards[index].active),
+          discharged: Number(this.newWarehouse.discharged ?? this.cards[index].discharged),
         };
       }
     }
@@ -291,18 +279,12 @@ export class DashboardMain implements OnInit {
     }
 
     this.cards = this.cards.map((card) => {
-      const trucksForWarehouse = allTrucks.filter(
-        (t) => t.entrepotId === card.id
-      );
-      const pending = trucksForWarehouse.filter(
-        (t) => t.statut === 'En attente'
-      ).length;
+      const trucksForWarehouse = allTrucks.filter((t) => t.entrepotId === card.id);
+      const pending = trucksForWarehouse.filter((t) => t.statut === 'En attente').length;
       const active = trucksForWarehouse.filter(
         (t) => t.statut === 'En cours de déchargement'
       ).length;
-      const discharged = trucksForWarehouse.filter(
-        (t) => t.statut === 'Déchargé'
-      ).length;
+      const discharged = trucksForWarehouse.filter((t) => t.statut === 'Déchargé').length;
 
       return {
         ...card,

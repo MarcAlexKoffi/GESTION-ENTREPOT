@@ -63,7 +63,11 @@
       <!-- TOP BAR -->
       <header class="topbar">
         <div class="topbar-actions">
-          <div class="notification-wrapper" (click)="toggleNotifications()" style="position:relative">
+          <div
+            class="notification-wrapper"
+            (click)="toggleNotifications(); $event.stopPropagation()"
+            style="position: relative"
+          >
             <button class="icon-button" type="button">
               <span class="material-symbols-outlined">notifications</span>
 
@@ -75,14 +79,12 @@
             <div class="notif-dropdown" *ngIf="showNotifDropdown">
               <p class="notif-title">Actions administrateur</p>
 
-              <div *ngIf="notifications.length === 0" class="notif-empty">
-                Aucune notification.
-              </div>
+              <div *ngIf="notifications.length === 0" class="notif-empty">Aucune notification.</div>
 
               <div
                 *ngFor="let n of notifications"
                 class="notif-item"
-                (click)="openNotification(n); $event.stopPropagation();"
+                (click)="openNotification(n); $event.stopPropagation()"
               >
                 <div class="notif-line-main">
                   <span class="notif-immat">{{ n.immatriculation }}</span>
@@ -100,7 +102,9 @@
           <div class="user-block">
             <div
               class="user-avatar"
-              style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDPHyHGMfTjg0KY3dZ-4D-csVv0_-YYCb8FAMEwxtDUIYrSr0qUlMlx9xc0kD5FdKoHfGT2TO7q3AfmgKtLEa3ZZSJssGPPp0WNOEjaBIbeeeOYdn3xAbxA5qOPiXRi5piRgZ9GB7GF8kudQYw8dkAAgGGYEsWT2DXaQ8m7QeeV5YTKpQb33QwQOQPF6tgTY0ZM5PfeTpb8NQByRdbDmwCCBSNPHz0CRZWMFIro1_4Unfqodv6iXWCL4YMw3aQxA9Y9MNpk4lnTUBoL');"
+              style="
+                background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDPHyHGMfTjg0KY3dZ-4D-csVv0_-YYCb8FAMEwxtDUIYrSr0qUlMlx9xc0kD5FdKoHfGT2TO7q3AfmgKtLEa3ZZSJssGPPp0WNOEjaBIbeeeOYdn3xAbxA5qOPiXRi5piRgZ9GB7GF8kudQYw8dkAAgGGYEsWT2DXaQ8m7QeeV5YTKpQb33QwQOQPF6tgTY0ZM5PfeTpb8NQByRdbDmwCCBSNPHz0CRZWMFIro1_4Unfqodv6iXWCL4YMw3aQxA9Y9MNpk4lnTUBoL');
+              "
             ></div>
 
             <div class="user-info">
