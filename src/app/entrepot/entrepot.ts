@@ -4,11 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 type TruckStatus =
-  | 'En attente'                // données analyse envoyées par le gérant → attente validation admin
-  | 'Validé'                    // validation admin → attente démarrage déchargement par gérant
+  | 'En attente' // données analyse envoyées par le gérant → attente validation admin
+  | 'Validé' // validation admin → attente démarrage déchargement par gérant
   | 'En cours de déchargement'
   | 'Déchargé'
-  | 'Annulé';                   // refoulé par admin
+  | 'Annulé'; // refoulé par admin
 
 interface Truck {
   id: number;
@@ -52,7 +52,6 @@ interface AdminComment {
   styleUrl: './entrepot.scss',
 })
 export class Entrepot implements OnInit {
-
   entrepot = {
     id: 0,
     nom: '',
@@ -60,7 +59,7 @@ export class Entrepot implements OnInit {
   };
 
   // Ajout de la nouvelle catégorie RENVOYÉS
-  currentTab: 'pending' | 'validated' | 'cancelled' | 'renvoyes' = 'pending';
+  currentTab: 'pending' | 'validated' | 'accepted' | 'cancelled' | 'renvoyes' = 'pending';
   showDetailsModal = false;
 
   trucks: Truck[] = [];
@@ -78,13 +77,13 @@ export class Entrepot implements OnInit {
     let warehouses: StoredWarehouse[] = [];
     const saved = localStorage.getItem('warehouses');
     if (saved) {
-      try { warehouses = JSON.parse(saved); } catch {}
+      try {
+        warehouses = JSON.parse(saved);
+      } catch {}
     }
 
     if (warehouses.length === 0) {
-      warehouses = [
-        { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes' },
-      ];
+      warehouses = [{ id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes' }];
     }
 
     const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
@@ -154,7 +153,9 @@ export class Entrepot implements OnInit {
     let all: AdminComment[] = [];
 
     if (raw) {
-      try { all = JSON.parse(raw); } catch {}
+      try {
+        all = JSON.parse(raw);
+      } catch {}
     }
 
     all = all.filter((c) => c.truckId !== truckId);
@@ -164,11 +165,81 @@ export class Entrepot implements OnInit {
 
     localStorage.setItem(this.commentStorageKey, JSON.stringify(all));
   }
+  // ================================================================
+// HEURE PAR CATÉGORIE (colonne "Heure arrivée")
+// ================================================================
+private formatHourFromIso(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+private findHistoryDate(truck: Truck, event: string): string | undefined {
+  const list = (truck as any).history || [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]?.event === event && list[i]?.date) return list[i].date;
+  }
+  return undefined;
+}
+
+getHourForCurrentTab(t: Truck): string {
+  const fallback = t.createdAt || '';
+
+  switch (this.currentTab) {
+    case 'pending': {
+      const iso =
+        this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'validated': {
+      const iso =
+        this.findHistoryDate(t, 'Validation administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'accepted': {
+      const iso =
+        (t as any).finalAcceptedAt ||
+        this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'cancelled': {
+      const iso =
+        (t as any).refusedAt ||
+        this.findHistoryDate(t, 'Refus administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'renvoyes': {
+      const iso =
+        (t as any).renvoyeAt ||
+        this.findHistoryDate(t, 'Camion renvoyé par le gérant') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    default:
+      return this.formatHourFromIso(t.createdAt || fallback);
+  }
+}
+
 
   // ================================================================
   // ONGLET
   // ================================================================
-  setTab(tab: 'pending' | 'validated' | 'cancelled' | 'renvoyes'): void {
+  setTab(tab: 'pending' | 'validated' | 'accepted' | 'cancelled' | 'renvoyes'): void {
     this.currentTab = tab;
   }
 
@@ -178,21 +249,23 @@ export class Entrepot implements OnInit {
         return this.trucks.filter((t) => t.statut === 'En attente');
 
       case 'validated':
-        return this.trucks.filter((t) => t.statut === 'Validé');
+        return this.trucks.filter(
+          (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+        );
 
       case 'cancelled':
         // Refoulés mais PAS renvoyés
-        return this.trucks.filter((t: any) =>
-          t.statut === 'Annulé' &&
-          t.advancedStatus !== 'REFUSE_RENVOYE'
+        return this.trucks.filter(
+          (t: any) => t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'
         );
 
       case 'renvoyes':
         // RENVOYÉS par le gérant
-        return this.trucks.filter((t: any) =>
-          t.statut === 'Annulé' &&
-          t.advancedStatus === 'REFUSE_RENVOYE'
+        return this.trucks.filter(
+          (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
         );
+      case 'accepted':
+        return this.trucks.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL');
 
       default:
         return this.trucks;
@@ -239,7 +312,7 @@ export class Entrepot implements OnInit {
     (this.selectedTruck as any).history.push({
       event: 'Validation administrateur',
       by: 'admin',
-      date: now
+      date: now,
     });
 
     this.saveComment(this.selectedTruck.id, this.adminComment);
@@ -252,31 +325,31 @@ export class Entrepot implements OnInit {
   // REFOULEMENT
   // ================================================================
   refuseTruck(): void {
-  if (!this.selectedTruck) return;
+    if (!this.selectedTruck) return;
 
-  // ✅ Statut ADMIN (utilisé pour les onglets Refoulés / Renvoyés)
-  this.selectedTruck.statut = 'Annulé';
+    // ✅ Statut ADMIN (utilisé pour les onglets Refoulés / Renvoyés)
+    this.selectedTruck.statut = 'Annulé';
 
-  // ✅ Statut métier avancé (gérant)
-  this.selectedTruck.advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
-  this.selectedTruck.refusedAt = new Date().toISOString();
+    // ✅ Statut métier avancé (gérant)
+    this.selectedTruck.advancedStatus = 'REFUSE_EN_ATTENTE_GERANT';
+    this.selectedTruck.refusedAt = new Date().toISOString();
 
-  // Notification côté gérant
-  this.selectedTruck.unreadForGerant = true;
+    // Notification côté gérant
+    this.selectedTruck.unreadForGerant = true;
 
-  // Historique
-  this.selectedTruck.history = this.selectedTruck.history || [];
-  this.selectedTruck.history.push({
-    event: 'Refus administrateur',
-    by: 'admin',
-    date: new Date().toISOString()
-  });
+    // Historique
+    this.selectedTruck.history = this.selectedTruck.history || [];
+    this.selectedTruck.history.push({
+      event: 'Refus administrateur',
+      by: 'admin',
+      date: new Date().toISOString(),
+    });
 
-  this.saveComment(this.selectedTruck.id, this.adminComment);
+    this.saveComment(this.selectedTruck.id, this.adminComment);
 
-  this.saveTrucks();
-  this.closeDetailsModal();
-}
+    this.saveTrucks();
+    this.closeDetailsModal();
+  }
 
   // ================================================================
   // STATISTIQUES
@@ -290,20 +363,25 @@ export class Entrepot implements OnInit {
   }
 
   get nbValidated(): number {
-    return this.trucks.filter((t) => t.statut === 'Validé').length;
+    // ✅ Validés = Validé mais pas encore accepté définitivement
+    return this.trucks.filter(
+      (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+    ).length;
+  }
+
+  get nbAccepted(): number {
+    return this.trucks.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL').length;
   }
 
   get nbCancelled(): number {
-    return this.trucks.filter((t: any) =>
-      t.statut === 'Annulé' &&
-      t.advancedStatus !== 'REFUSE_RENVOYE'
+    return this.trucks.filter(
+      (t: any) => t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'
     ).length;
   }
 
   get nbRenvoyes(): number {
-    return this.trucks.filter((t: any) =>
-      t.statut === 'Annulé' &&
-      t.advancedStatus === 'REFUSE_RENVOYE'
+    return this.trucks.filter(
+      (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
     ).length;
   }
 }

@@ -51,11 +51,10 @@ export interface StoredTruck {
   unreadForAdmin?: boolean;
 
   products?: {
-    produit: string;
-    categorie: string;
-    poids: string;
-    quantite: string;
-    observations?: string;
+    numeroLot: string;
+    nombreSacsDecharges: string;
+    poidsBrut: string;
+    poidsNet: string;
   };
 
   history: {
@@ -89,6 +88,7 @@ export class UserEntrepot implements OnInit {
   showHistoryModal = false;
   showModal = false;
   showSuccessBanner = false;
+  showDetailsModal = false;
 
   lastSavedStatutLabel = '';
 
@@ -104,11 +104,20 @@ export class UserEntrepot implements OnInit {
   selectedTruckForAnalysis: StoredTruck | null = null;
   selectedTruckForProducts: StoredTruck | null = null;
   selectedTruckForHistory: StoredTruck | null = null;
+  selectedTruckForDetails: StoredTruck | null = null;
 
   editTruckData = { immatriculation: '', transporteur: '', transfert: '', coperative: '' };
   analysisData = { kor: '', th: '' };
 
-  productForm = { produit: '', categorie: '', poids: '', quantite: '', observations: '' };
+  productForm = {
+    numeroCamion: '',
+    numeroFicheTransfert: '',
+    numeroLot: '',
+    nombreSacsDecharges: '',
+    poidsBrut: '',
+    poidsNet: '',
+    kor: '',
+  };
 
   constructor(private route: ActivatedRoute) {}
 
@@ -205,6 +214,81 @@ export class UserEntrepot implements OnInit {
         return [];
     }
   }
+// =========================================================
+// HEURE PAR CATÉGORIE (affichée dans la colonne "Heure")
+// =========================================================
+private formatHourFromIso(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+private findHistoryDate(truck: StoredTruck, event: string): string | undefined {
+  const list = truck.history || [];
+  // On cherche la dernière occurrence de cet event (plus récent)
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]?.event === event && list[i]?.date) return list[i].date;
+  }
+  return undefined;
+}
+
+/** Heure à afficher selon l’onglet actif */
+getHourForCurrentTab(t: StoredTruck): string {
+  // fallback : heureArrivee (ancienne logique) si vraiment rien
+  const fallback = t.createdAt || '';
+
+  switch (this.currentTab) {
+    case 'enregistres': {
+      const iso = this.findHistoryDate(t, 'Camion enregistré') || t.createdAt || fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'attente': {
+      const iso =
+        this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'valides': {
+      const iso =
+        // si tu remplis un jour validatedAt, il sera prioritaire
+        (t as any).validatedAt ||
+        this.findHistoryDate(t, 'Validation administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'refoules': {
+      const iso =
+        (t as any).refusedAt ||
+        this.findHistoryDate(t, 'Refus administrateur') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'acceptes': {
+      const iso =
+        t.finalAcceptedAt ||
+        this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
+        t.createdAt ||
+        fallback;
+      return this.formatHourFromIso(iso);
+    }
+
+    case 'historique': {
+      const last = (t.history && t.history.length > 0) ? t.history[t.history.length - 1]?.date : undefined;
+      return this.formatHourFromIso(last || t.createdAt || fallback);
+    }
+
+    default:
+      return this.formatHourFromIso(t.createdAt || fallback);
+  }
+}
 
   // =========================================================
   // AJOUT CAMION
@@ -327,11 +411,14 @@ export class UserEntrepot implements OnInit {
     this.selectedTruckForProducts = t;
 
     this.productForm = {
-      produit: t.products?.produit ?? '',
-      categorie: t.products?.categorie ?? '',
-      poids: t.products?.poids ?? '',
-      quantite: t.products?.quantite ?? '',
-      observations: t.products?.observations ?? '',
+      numeroCamion: t.immatriculation ?? '',
+      numeroFicheTransfert: t.transfert ?? '',
+      kor: t.kor ?? '',
+
+      numeroLot: t.products?.numeroLot ?? '',
+      nombreSacsDecharges: t.products?.nombreSacsDecharges ?? '',
+      poidsBrut: t.products?.poidsBrut ?? '',
+      poidsNet: t.products?.poidsNet ?? '',
     };
 
     this.showProductsModal = true;
@@ -341,18 +428,36 @@ export class UserEntrepot implements OnInit {
     if (!this.selectedTruckForProducts) return;
 
     const t = this.selectedTruckForProducts;
-    t.products = {
-      produit: this.productForm.produit.trim(),
-      categorie: this.productForm.categorie.trim(),
-      poids: this.productForm.poids.trim(),
-      quantite: this.productForm.quantite.trim(),
-      observations: this.productForm.observations.trim(),
-    };
 
+    // Champs déjà existants dans ton camion
+    t.immatriculation = (this.productForm.numeroCamion || '').trim();
+    t.transfert = (this.productForm.numeroFicheTransfert || '').trim();
+    t.kor = (this.productForm.kor || '').trim();
+
+    // Champs produits
+   const toStr = (v: any) => String(v ?? '').trim();
+
+    // Champs produits (robustes même si l’input renvoie un number)
+  t.products = {
+  numeroLot: toStr(this.productForm.numeroLot),
+  nombreSacsDecharges: toStr(this.productForm.nombreSacsDecharges),
+  poidsBrut: toStr(this.productForm.poidsBrut),
+  poidsNet: toStr(this.productForm.poidsNet),
+};
+
+
+    // Si tu avais déjà une logique métier après validation, garde-la.
+    // (Ne supprime pas ce que tu avais : mets juste ces champs avant de sauvegarder.)
+    // Marquer comme "Accepté définitivement" côté gérant
     t.advancedStatus = 'ACCEPTE_FINAL';
     t.finalAcceptedAt = new Date().toISOString();
 
-    this.addHistory(t, 'Détails produits renseignés');
+    // Notifier l’admin (si tu utilises la cloche / pastille)
+    t.unreadForAdmin = true;
+
+    // Historique
+    this.addHistory(t, 'Détails produits renseignés — Camion accepté');
+
     this.saveTrucks();
     this.showProductsModal = false;
   }
@@ -360,21 +465,20 @@ export class UserEntrepot implements OnInit {
   // =========================================================
   // REFOULEMENT : RENVOYER PAR LE GÉRANT
   // =========================================================
-markAsRenvoye(t: StoredTruck) {
-  //  Assure la compatibilité admin : l’admin classe par statut "Annulé"
-  t.statut = 'Annulé';
+  markAsRenvoye(t: StoredTruck) {
+    //  Assure la compatibilité admin : l’admin classe par statut "Annulé"
+    t.statut = 'Annulé';
 
-  // Statut avancé : renvoyé
-  t.advancedStatus = 'REFUSE_RENVOYE';
-  t.renvoyeAt = new Date().toISOString();
+    // Statut avancé : renvoyé
+    t.advancedStatus = 'REFUSE_RENVOYE';
+    t.renvoyeAt = new Date().toISOString();
 
-  // Notifier l’admin
-  t.unreadForAdmin = true;
+    // Notifier l’admin
+    t.unreadForAdmin = true;
 
-  this.addHistory(t, 'Camion renvoyé par le gérant');
-  this.saveTrucks();
-}
-
+    this.addHistory(t, 'Camion renvoyé par le gérant');
+    this.saveTrucks();
+  }
 
   // =========================================================
   // HISTORIQUE
@@ -382,6 +486,50 @@ markAsRenvoye(t: StoredTruck) {
   openHistoryModal(t: StoredTruck) {
     this.selectedTruckForHistory = t;
     this.showHistoryModal = true;
+  }
+  openDetailsModal(t: StoredTruck) {
+    this.selectedTruckForDetails = t;
+    this.showDetailsModal = true;
+  }
+
+  printSelectedTruck() {
+    if (!this.selectedTruckForDetails) return;
+
+    const t = this.selectedTruckForDetails;
+
+    const html = `
+    <html>
+      <head>
+        <title>Fiche camion</title>
+        <style>
+          body { font-family: Arial; padding: 24px; }
+          h2 { margin-bottom: 16px; }
+          .row { margin-bottom: 8px; }
+          .label { font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <h2>Fiche camion acceptée</h2>
+        <div class="row"><span class="label">Camion :</span> ${t.immatriculation}</div>
+        <div class="row"><span class="label">Transfert :</span> ${t.transfert}</div>
+        <div class="row"><span class="label">Lot :</span> ${t.products?.numeroLot ?? ''}</div>
+        <div class="row"><span class="label">Sacs :</span> ${
+          t.products?.nombreSacsDecharges ?? ''
+        }</div>
+        <div class="row"><span class="label">Poids brut :</span> ${
+          t.products?.poidsBrut ?? ''
+        }</div>
+        <div class="row"><span class="label">Poids net :</span> ${t.products?.poidsNet ?? ''}</div>
+        <div class="row"><span class="label">KOR :</span> ${t.kor}</div>
+        <script>window.print()</script>
+      </body>
+    </html>
+  `;
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
   }
 
   // =========================================================
@@ -393,9 +541,13 @@ markAsRenvoye(t: StoredTruck) {
   get totalEnAttente() {
     return this.trucks.filter((t) => t.statut === 'En attente').length;
   }
-  get totalValides() {
-    return this.trucks.filter((t) => t.statut === 'Validé').length;
-  }
+ get totalValides() {
+  // Validés = Validé mais pas encore accepté
+  return this.trucks.filter(
+    (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+  ).length;
+}
+
   get totalAcceptes() {
     return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
   }

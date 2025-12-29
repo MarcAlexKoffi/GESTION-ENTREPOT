@@ -2,18 +2,13 @@
   <div class="page-root">
     <div class="page-center">
       <div class="page-shell">
-
         <!-- HEADER -->
         <header class="page-header">
           <div class="page-title-block">
             <p class="page-title">{{ entrepot.nom }}</p>
             <p class="page-subtitle">{{ entrepot.lieu }}</p>
           </div>
-          <button
-            type="button"
-            class="btn-back"
-            [routerLink]="'/dashboard/dashboard-main'"
-          >
+          <button type="button" class="btn-back" [routerLink]="'/dashboard/dashboard-main'">
             <span class="material-symbols-outlined">arrow_back</span>
             <span class="truncate">Retour aux entrepôts</span>
           </button>
@@ -34,6 +29,10 @@
           <article class="stat-card">
             <p class="stat-label">Validés</p>
             <p class="stat-value">{{ nbValidated }}</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">Acceptés</p>
+            <p class="stat-value">{{ nbAccepted }}</p>
           </article>
 
           <article class="stat-card">
@@ -73,47 +72,62 @@
 
         <!-- MAIN CARD -->
         <section class="card">
-
           <!-- TABS -->
           <div class="tabs-header">
             <div class="tabs-row">
-
               <!-- EN ATTENTE DE VALIDATION -->
-              <a href="#"
-                 class="tab-link"
-                 [class.tab-link--active]="currentTab === 'pending'"
-                 (click)="setTab('pending'); $event.preventDefault()">
+              <a
+                href="#"
+                class="tab-link"
+                [class.tab-link--active]="currentTab === 'pending'"
+                (click)="setTab('pending'); $event.preventDefault()"
+              >
                 <span>En attente de validation</span>
                 <span class="tab-pill">{{ nbPending }}</span>
               </a>
 
               <!-- VALIDÉS -->
-              <a href="#"
-                 class="tab-link"
-                 [class.tab-link--active]="currentTab === 'validated'"
-                 (click)="setTab('validated'); $event.preventDefault()">
+              <a
+                href="#"
+                class="tab-link"
+                [class.tab-link--active]="currentTab === 'validated'"
+                (click)="setTab('validated'); $event.preventDefault()"
+              >
                 <span>Validés</span>
                 <span class="tab-pill">{{ nbValidated }}</span>
               </a>
+              <!-- ACCEPTES -->
+              <a
+                href="#"
+                class="tab-link"
+                [class.tab-link--active]="currentTab === 'accepted'"
+                (click)="setTab('accepted'); $event.preventDefault()"
+              >
+                <span>Acceptés</span>
+                <span class="tab-pill">{{ nbAccepted }}</span>
+              </a>
 
               <!-- REFOULÉS -->
-              <a href="#"
-                 class="tab-link"
-                 [class.tab-link--active]="currentTab === 'cancelled'"
-                 (click)="setTab('cancelled'); $event.preventDefault()">
+              <a
+                href="#"
+                class="tab-link"
+                [class.tab-link--active]="currentTab === 'cancelled'"
+                (click)="setTab('cancelled'); $event.preventDefault()"
+              >
                 <span>Refoulés</span>
                 <span class="tab-pill">{{ nbCancelled }}</span>
               </a>
 
               <!-- RENVOYÉS (NOUVEAU) -->
-              <a href="#"
-                 class="tab-link"
-                 [class.tab-link--active]="currentTab === 'renvoyes'"
-                 (click)="setTab('renvoyes'); $event.preventDefault()">
+              <a
+                href="#"
+                class="tab-link"
+                [class.tab-link--active]="currentTab === 'renvoyes'"
+                (click)="setTab('renvoyes'); $event.preventDefault()"
+              >
                 <span>Renvoyés</span>
                 <span class="tab-pill">{{ nbRenvoyes }}</span>
               </a>
-
             </div>
           </div>
 
@@ -131,7 +145,6 @@
               </thead>
 
               <tbody>
-
                 <!-- AUCUN -->
                 <tr *ngIf="filteredTrucks.length === 0">
                   <td colspan="6" class="cell-muted">
@@ -143,26 +156,36 @@
                 <tr *ngFor="let t of filteredTrucks">
                   <td class="cell-main">{{ t.immatriculation }}</td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
-                  <td class="cell-muted">{{ t.heureArrivee }}</td>
-
+                 <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
                   <td class="cell-status">
-                    <span *ngIf="t.statut === 'En attente'" class="status-pill status-pill--pending">
+                    <span
+                      *ngIf="t.statut === 'En attente'"
+                      class="status-pill status-pill--pending"
+                    >
                       En attente de validation
                     </span>
 
-                    <span *ngIf="t.statut === 'Validé'" class="status-pill status-pill--active">
-                      Validé (en attente gérant)
+                    <span
+                      *ngIf="t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'"
+                      class="status-pill status-pill--active"
+                    >
+                        Validé
                     </span>
 
-                    <span *ngIf="t.statut === 'Annulé'" class="status-pill status-pill--cancelled">
+                    <span
+                      *ngIf="t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'"
+                      class="status-pill status-pill--cancelled"
+                    >
                       Refoulé
                     </span>
 
-                    <span *ngIf="t.advancedStatus === 'REFUSE_RENVOYE'"
-      class="status-pill status-pill--active">
-  Renvoyé par le gérant
-</span>
-
+                    <!-- ✅ ACCEPTÉ FINAL -->
+                    <span
+                      *ngIf="t.advancedStatus === 'ACCEPTE_FINAL'"
+                      class="status-pill status-pill--active"
+                    >
+                      Accepté
+                    </span>
                   </td>
 
                   <td class="cell-actions">
@@ -171,13 +194,10 @@
                     </button>
                   </td>
                 </tr>
-
               </tbody>
             </table>
           </div>
-
         </section>
-
       </div>
     </div>
   </div>
@@ -185,16 +205,19 @@
   <!-- MODAL DETAILS ADMIN -->
   <div class="modal" *ngIf="showDetailsModal">
     <div class="truck-modal">
-
       <div class="truck-modal-header">
         <h2 class="truck-modal-title">Détails du camion</h2>
-        <button type="button" class="truck-modal-close" aria-label="Fermer" (click)="closeDetailsModal()">
+        <button
+          type="button"
+          class="truck-modal-close"
+          aria-label="Fermer"
+          (click)="closeDetailsModal()"
+        >
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
       <div class="truck-modal-body">
-
         <div class="truck-field">
           <label class="truck-label">Immatriculation</label>
           <input class="truck-input" [value]="selectedTruck?.immatriculation" disabled />
@@ -229,15 +252,13 @@
           <label class="truck-label">Commentaire admin</label>
           <textarea class="truck-input" rows="3" [(ngModel)]="adminComment"></textarea>
         </div>
-
       </div>
 
       <div class="truck-modal-footer">
-
         <button
           type="button"
           class="truck-submit"
-          style="background-color:#4caf50"
+          style="background-color: #4caf50"
           (click)="validateTruck()"
         >
           Valider
@@ -246,15 +267,12 @@
         <button
           type="button"
           class="truck-submit"
-          style="background-color:#e53935"
+          style="background-color: #e53935"
           (click)="refuseTruck()"
         >
           Refouler
         </button>
-
       </div>
-
     </div>
   </div>
-
 </div>

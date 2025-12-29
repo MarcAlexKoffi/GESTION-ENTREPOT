@@ -155,7 +155,8 @@
                 <tr *ngFor="let t of getList()">
                   <td>{{ t.immatriculation }}</td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
-                  <td class="cell-muted">{{ t.heureArrivee }}</td>
+                  <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
+
 
                   <!-- STATUT -->
                   <td>
@@ -243,6 +244,12 @@
                         <!-- HISTORIQUE -->
                         <button (click)="openHistoryModal(t); t.showMenu = false">
                           Voir historique
+                        </button>
+                        <button
+                          *ngIf="t.advancedStatus === 'ACCEPTE_FINAL' && t.products"
+                          (click)="openDetailsModal(t); t.showMenu = false"
+                        >
+                          Voir détails / Imprimer
                         </button>
                       </div>
                     </div>
@@ -429,34 +436,94 @@
       </div>
 
       <div class="truck-modal-body">
+        <!-- Numéro du camion -->
         <div class="truck-field">
-          <label class="truck-label">Nom du produit</label>
-          <input class="truck-input" [(ngModel)]="productForm.produit" />
+          <label class="truck-label">Numéro du camion</label>
+          <input
+            class="truck-input"
+            type="text"
+            placeholder="Ex : AB-123-CD"
+            [(ngModel)]="productForm.numeroCamion"
+          />
         </div>
 
+        <!-- Numéro de la fiche de transfert -->
         <div class="truck-field">
-          <label class="truck-label">Catégorie</label>
-          <input class="truck-input" [(ngModel)]="productForm.categorie" />
+          <label class="truck-label">Numéro de la fiche de transfert</label>
+          <input
+            class="truck-input"
+            type="text"
+            placeholder="Ex : FT-2025-0012"
+            [(ngModel)]="productForm.numeroFicheTransfert"
+          />
         </div>
 
+        <!-- Numéro de lot -->
         <div class="truck-field">
-          <label class="truck-label">Poids total</label>
-          <input class="truck-input" [(ngModel)]="productForm.poids" />
+          <label class="truck-label">Numéro de Lot</label>
+          <input
+            class="truck-input"
+            type="text"
+            placeholder="Ex : LOT-4587"
+            [(ngModel)]="productForm.numeroLot"
+          />
         </div>
 
+        <!-- Nombre de sacs déchargés -->
         <div class="truck-field">
-          <label class="truck-label">Quantité</label>
-          <input class="truck-input" [(ngModel)]="productForm.quantite" />
+          <label class="truck-label">Nombre de sacs déchargés</label>
+          <input
+            class="truck-input"
+            type="number"
+            inputmode="numeric"
+            min="0"
+            placeholder="Ex : 120"
+            [(ngModel)]="productForm.nombreSacsDecharges"
+          />
         </div>
 
+        <!-- Poids brut -->
         <div class="truck-field">
-          <label class="truck-label">Observations</label>
-          <textarea class="truck-input" rows="3" [(ngModel)]="productForm.observations"></textarea>
+          <label class="truck-label">Poids Brut</label>
+          <input
+            class="truck-input"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            step="0.01"
+            placeholder="Ex : 3500"
+            [(ngModel)]="productForm.poidsBrut"
+          />
+        </div>
+
+        <!-- Poids net -->
+        <div class="truck-field">
+          <label class="truck-label">Poids Net</label>
+          <input
+            class="truck-input"
+            type="number"
+            inputmode="decimal"
+            min="0"
+            step="0.01"
+            placeholder="Ex : 3400"
+            [(ngModel)]="productForm.poidsNet"
+          />
+        </div>
+
+        <!-- KOR -->
+        <div class="truck-field">
+          <label class="truck-label">KOR</label>
+          <input
+            class="truck-input"
+            type="text"
+            placeholder="Ex : 45"
+            [(ngModel)]="productForm.kor"
+          />
         </div>
       </div>
 
       <div class="truck-modal-footer">
-        <button class="truck-submit" (click)="saveProducts()">Enregistrer</button>
+        <button type="button" class="truck-submit" (click)="saveProducts()">Enregistrer</button>
       </div>
     </div>
   </div>
@@ -490,6 +557,75 @@
 
       <div class="truck-modal-footer">
         <button class="truck-submit" (click)="showHistoryModal = false">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE CONSULTATION CAMION (READONLY) -->
+  <div class="modal" *ngIf="showDetailsModal">
+    <div class="truck-modal">
+      <div class="truck-modal-header">
+        <h2 class="truck-modal-title">Détails du camion</h2>
+        <button class="truck-modal-close" (click)="showDetailsModal = false">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="truck-modal-body">
+        <div class="truck-field">
+          <label class="truck-label">Numéro du camion</label>
+          <input class="truck-input" [value]="selectedTruckForDetails?.immatriculation" readonly />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Fiche de transfert</label>
+          <input class="truck-input" [value]="selectedTruckForDetails?.transfert" readonly />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Numéro de lot</label>
+          <input
+            class="truck-input"
+            [value]="selectedTruckForDetails?.products?.numeroLot"
+            readonly
+          />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Nombre de sacs</label>
+          <input
+            class="truck-input"
+            [value]="selectedTruckForDetails?.products?.nombreSacsDecharges"
+            readonly
+          />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Poids brut</label>
+          <input
+            class="truck-input"
+            [value]="selectedTruckForDetails?.products?.poidsBrut"
+            readonly
+          />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">Poids net</label>
+          <input
+            class="truck-input"
+            [value]="selectedTruckForDetails?.products?.poidsNet"
+            readonly
+          />
+        </div>
+
+        <div class="truck-field">
+          <label class="truck-label">KOR</label>
+          <input class="truck-input" [value]="selectedTruckForDetails?.kor" readonly />
+        </div>
+      </div>
+
+      <div class="truck-modal-footer">
+        <button class="truck-submit" (click)="printSelectedTruck()">Imprimer</button>
       </div>
     </div>
   </div>
