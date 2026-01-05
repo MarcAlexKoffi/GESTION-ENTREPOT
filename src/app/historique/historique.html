@@ -10,7 +10,12 @@
               Consultez et filtrez l'historique de tous les passages de camions.
             </p>
           </div>
-          <button type="button" class="primary-chip-button">
+          <button
+            type="button"
+            class="primary-chip-button"
+            (click)="exporterCSV()"
+            [disabled]="filteredRows.length === 0"
+          >
             <span class="material-symbols-outlined">download</span>
             <span>Exporter</span>
           </button>
@@ -24,8 +29,13 @@
                 <div class="search-icon-box">
                   <span class="material-symbols-outlined">search</span>
                 </div>
-                <input type="text" class="search-input" placeholder="Rechercher par immatriculation ou transporteur..."
-                  [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()" />
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Rechercher par immatriculation ou transporteur..."
+                  [(ngModel)]="searchTerm"
+                  (ngModelChange)="applyFilters()"
+                />
               </div>
             </div>
             <!-- Filtres sous forme de "chips" -->
@@ -33,7 +43,11 @@
               <!-- Filtre Entrepôt -->
               <div class="filter-chip">
                 <span>Entrepôt</span>
-                <select class="filter-select" [(ngModel)]="selectedWarehouseId" (change)="applyFilters()">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="selectedWarehouseId"
+                  (change)="applyFilters()"
+                >
                   <option [ngValue]="'all'">Tous</option>
                   <option *ngFor="let w of warehousesOptions" [ngValue]="w.id">
                     {{ w.name }}
@@ -45,7 +59,11 @@
               <!-- Filtre Période -->
               <div class="filter-chip">
                 <span>Période</span>
-                <select class="filter-select" [(ngModel)]="selectedPeriod" (change)="applyFilters()">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="selectedPeriod"
+                  (change)="applyFilters()"
+                >
                   <option value="all">Toutes</option>
                   <option value="today">Aujourd'hui</option>
                   <option value="7days">7 derniers jours</option>
@@ -56,12 +74,14 @@
               <!-- Filtre Statut -->
               <div class="filter-chip">
                 <span>Statut</span>
-                <select class="filter-select" [(ngModel)]="selectedStatus" (change)="applyFilters()">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="selectedStatus"
+                  (change)="applyFilters()"
+                >
                   <option [ngValue]="'all'">Tous</option>
                   <option value="En attente">En attente</option>
-                  <option value="En cours de déchargement">
-                    En cours de déchargement
-                  </option>
+                  <option value="En cours de déchargement">En cours de déchargement</option>
                   <option value="Déchargé">Déchargé</option>
                   <option value="Annulé">Annulé</option>
                 </select>
@@ -80,17 +100,16 @@
                   <th>Entrepôt</th>
                   <th>Immatriculation</th>
                   <th>Transporteur</th>
-                  <th>KOR (qualité)</th>
-                  <th>Heure d'enrégistrementy</th>
-                  <th>Début déchargement</th>
-                  <th>Fin déchargement</th>
+                  <th>Date Arrivée Camion</th>
+                  <th>Heure d'enrégistrement</th>
+                  <th>Heure de Validation</th>
+                  <th>Heure de rejet</th>
                   <th>Statut</th>
                   <th class="action-cell">Action</th>
                 </tr>
               </thead>
               <tbody>
                 <!-- Si aucune ligne -->
-                 
                 <tr *ngIf="filteredRows.length === 0">
                   <td colspan="9" class="cell-muted">
                     Aucun passage ne correspond à vos filtres pour le moment.
@@ -98,25 +117,37 @@
                 </tr>
 
                 <!-- Lignes d'historique -->
-                <tr *ngFor="let row of filteredRows">
-                  <td class="cell-muted">{{ row.entrepotName }}</td>
-                  <td class="cell-main">{{ row.immatriculation }}</td>
-                  <td class="cell-muted">{{ row.transporteur }}</td>
-                  <td class="cell-muted">{{ row.kor || '-' }}</td>
-                  <td class="cell-muted">{{ row.heureArrivee }}</td>
-                  <td class="cell-muted">{{ row.debutDechargement }}</td>
-                  <td class="cell-muted">{{ row.finDechargement }}</td>
-                  <td>
-                    <span [ngClass]="getStatusCssClass(row.statut)">
-                      {{ row.statut }}
-                    </span>
-                  </td>
-                  <td class="action-cell">
-                    <button type="button" class="icon-ghost-button">
-                      <span class="material-symbols-outlined">visibility</span>
-                    </button>
-                  </td>
-                </tr>
+                <ng-container *ngIf="filteredRows.length > 0">
+                  <tr *ngFor="let row of filteredRows">
+                    <td class="cell-muted">{{ row.entrepotName }}</td>
+                    <td class="cell-main">{{ row.immatriculation }}</td>
+                    <td class="cell-muted">{{ row.transporteur }}</td>
+                    <td class="cell-muted">
+                      {{ row.createdAt | date : 'dd/MM/yyyy' }}
+                    </td>
+                    <td class="cell-muted">
+                      {{ row.finDechargement !== '-' ? row.finDechargement : '-' }}
+                    </td>
+                    <td class="cell-muted">
+                      {{ row.statut === 'Annulé' ? row.finDechargement : '-' }}
+                    </td>
+                    <td class="cell-muted"></td>
+                    <td>
+                      <span [ngClass]="getStatusCssClass(row.statut)">
+                        {{ row.statut }}
+                      </span>
+                    </td>
+                    <td class="action-cell">
+                      <button
+                        type="button"
+                        class="icon-ghost-button"
+                        title="Voir le détail du passage"
+                      >
+                        <span class="material-symbols-outlined">visibility</span>
+                      </button>
+                    </td>
+                  </tr>
+                </ng-container>
               </tbody>
             </table>
           </div>

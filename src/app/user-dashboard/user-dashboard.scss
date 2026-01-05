@@ -312,6 +312,7 @@ body.dark .user-toggle:hover {
   color: #888;
   margin-top: 2px;
 }
+
 /* =========================
    RESPONSIVE
    ========================= */
@@ -327,7 +328,8 @@ body.dark .user-toggle:hover {
   }
 
   .page {
-    padding: 12px; /* si ton design a déjà un padding ailleurs, enlève cette ligne */
+    padding: 12px;
+    /* si ton design a déjà un padding ailleurs, enlève cette ligne */
   }
 }
 
@@ -351,7 +353,8 @@ body.dark .user-toggle:hover {
     border-right: none;
     border-top: 1px solid var(--border-light);
 
-    overflow: hidden; /* pas de scroll horizontal */
+    overflow: hidden;
+    /* pas de scroll horizontal */
   }
 
   /* Navigation en ligne */
@@ -385,4 +388,9 @@ body.dark .user-toggle:hover {
   .page {
     padding-bottom: 16px;
   }
+}
+
+.notif-dropdown {
+  max-height: 70vh;
+  overflow-y: auto;
 }

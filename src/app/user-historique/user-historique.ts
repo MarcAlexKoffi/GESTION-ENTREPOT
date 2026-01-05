@@ -50,17 +50,55 @@ export class UserHistorique implements OnInit {
   filteredRows: TruckHistoryRow[] = [];
 
   // champs de filtre
-  searchTerm = '';
-  selectedWarehouseId: number | 'all' = 'all';
-  selectedStatus: string | 'all' = 'all';
-  selectedPeriod: 'today' | '7days' | 'all' = 'all';
+  searchTerm: string = '';
+  selectedStatus: string = 'Tous';
+  selectedPeriod: string = 'Toutes';
 
   // options pour la liste des entrepôts
   warehousesOptions: StoredWarehouse[] = [];
 
   ngOnInit(): void {
     this.loadDataFromLocalStorage();
-    this.applyFilters();
+    this.filteredRows = [...this.allRows];
+  }
+
+  applyFilters(): void {
+    this.filteredRows = this.allRows.filter((row) => {
+      /* 🔍 Recherche */
+      const search = this.searchTerm.toLowerCase();
+
+      const matchesSearch =
+        row.immatriculation?.toLowerCase().includes(search) ||
+        row.transporteur?.toLowerCase().includes(search);
+
+      /* Statut */
+      const matchesStatus = this.selectedStatus === 'Tous' || row.statut === this.selectedStatus;
+
+      /* Période */
+      let matchesPeriod = true;
+
+      if (this.selectedPeriod !== 'Toutes') {
+        const rowDate = new Date(row.createdAt);
+        const today = new Date();
+
+        if (this.selectedPeriod === 'Aujourd’hui') {
+          matchesPeriod = rowDate.toDateString() === today.toDateString();
+        }
+
+        if (this.selectedPeriod === '7 derniers jours') {
+          const d = new Date();
+          d.setDate(today.getDate() - 7);
+          matchesPeriod = rowDate >= d;
+        }
+
+        if (this.selectedPeriod === '30 derniers jours') {
+          const d = new Date();
+          d.setDate(today.getDate() - 30);
+          matchesPeriod = rowDate >= d;
+        }
+      }
+      return matchesSearch && matchesStatus && matchesPeriod;
+    });
   }
 
   // Charge les entrepôts + camions depuis le localStorage
@@ -125,59 +163,6 @@ export class UserHistorique implements OnInit {
     this.allRows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  // Applique tous les filtres à la fois
-  applyFilters(): void {
-    const search = this.searchTerm.trim().toLowerCase();
-
-    const now = new Date();
-    const todayString = now.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-
-    this.filteredRows = this.allRows.filter((row) => {
-      // 1) Filtre texte (immat OU transporteur)
-      if (search) {
-        const haystack = (row.immatriculation + ' ' + row.transporteur).toLowerCase();
-        if (!haystack.includes(search)) {
-          return false;
-        }
-      }
-
-      // 2) Filtre entrepôt
-      if (this.selectedWarehouseId !== 'all') {
-        if (row.entrepotId !== this.selectedWarehouseId) {
-          return false;
-        }
-      }
-
-      // 3) Filtre statut
-      if (this.selectedStatus !== 'all') {
-        if (row.statut !== this.selectedStatus) {
-          return false;
-        }
-      }
-
-      // 4) Filtre période
-      if (this.selectedPeriod !== 'all') {
-        const createdDate = row.createdAt.slice(0, 10); // 'YYYY-MM-DD'
-
-        if (this.selectedPeriod === 'today') {
-          if (createdDate !== todayString) {
-            return false;
-          }
-        }
-
-        if (this.selectedPeriod === '7days') {
-          const createdTime = new Date(row.createdAt).getTime();
-          const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-          if (createdTime < sevenDaysAgo) {
-            return false;
-          }
-        }
-      }
-
-      return true;
-    });
-  }
-
   // Helpers pour les labels dans le template
   getStatusCssClass(statut: string): string {
     switch (statut) {
@@ -192,5 +177,57 @@ export class UserHistorique implements OnInit {
       default:
         return 'status-pill';
     }
+  }
+
+  exportCsv(): void {
+    if (!this.filteredRows || this.filteredRows.length === 0) {
+      alert('Aucune donnée à exporter.');
+      return;
+    }
+
+    // En-têtes CSV (dans l’ordre du tableau)
+    const headers = [
+      'Entrepôt',
+      'Immatriculation',
+      'Transporteur',
+      'KOR',
+      'Heure arrivée',
+      'Début déchargement',
+      'Fin déchargement',
+      'Statut',
+    ];
+
+    // Lignes CSV
+    const rows = this.filteredRows.map((row) => [
+      row.entrepotName,
+      row.immatriculation,
+      row.transporteur,
+      row.kor || '',
+      row.heureArrivee,
+      row.debutDechargement,
+      row.finDechargement,
+      row.statut,
+    ]);
+
+    // Construction du contenu CSV
+    const csvContent = [headers, ...rows]
+      .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
+      .join('\n');
+
+    // Création du fichier
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historique_passages_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    link.click();
+
+    window.URL.revokeObjectURL(url);
   }
 }

@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+type TruckStatus = 'En attente' | 'En cours de déchargement' | 'Déchargé' | 'Annulé';
+
 interface StoredTruck {
   id: number;
   entrepotId: number;
@@ -9,7 +11,7 @@ interface StoredTruck {
   transporteur: string;
   transfert: string;
   kor: string;
-  statut: string; // 'En attente' | 'En cours de déchargement' | 'Déchargé' | 'Annulé'
+  statut: TruckStatus;
   heureArrivee: string;
   createdAt: string; // date ISO
   debutDechargement?: string;
@@ -31,7 +33,7 @@ interface TruckHistoryRow {
   heureArrivee: string;
   debutDechargement: string;
   finDechargement: string;
-  statut: string;
+  statut: TruckStatus;
   createdAt: string; // utile pour le filtre par période
 }
 
@@ -52,7 +54,7 @@ export class Historique implements OnInit {
   // champs de filtre
   searchTerm = '';
   selectedWarehouseId: number | 'all' = 'all';
-  selectedStatus: string | 'all' = 'all';
+  selectedStatus: TruckStatus | 'all' = 'all';
   selectedPeriod: 'today' | '7days' | 'all' = 'all';
 
   // options pour la liste des entrepôts
@@ -93,8 +95,7 @@ export class Historique implements OnInit {
 
     // 3) Construction des lignes d’historique
     this.allRows = trucks.map((t) => {
-      const warehouse =
-        this.warehousesOptions.find((w) => w.id === t.entrepotId) ?? null;
+      const warehouse = this.warehousesOptions.find((w) => w.id === t.entrepotId) ?? null;
 
       return {
         entrepotId: t.entrepotId,
@@ -111,9 +112,7 @@ export class Historique implements OnInit {
     });
 
     // Tri : le plus récent en premier
-    this.allRows.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    this.allRows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   // Applique tous les filtres à la fois
@@ -126,8 +125,7 @@ export class Historique implements OnInit {
     this.filteredRows = this.allRows.filter((row) => {
       // 1) Filtre texte (immat OU transporteur)
       if (search) {
-        const haystack =
-          (row.immatriculation + ' ' + row.transporteur).toLowerCase();
+        const haystack = (row.immatriculation + ' ' + row.transporteur).toLowerCase();
         if (!haystack.includes(search)) {
           return false;
         }
@@ -148,19 +146,36 @@ export class Historique implements OnInit {
       }
 
       // 4) Filtre période
+      // 4) Filtre période (basé sur la date locale, plus fiable que UTC)
       if (this.selectedPeriod !== 'all') {
-        const createdDate = row.createdAt.slice(0, 10); // 'YYYY-MM-DD'
+        const created = new Date(row.createdAt);
+
+        // Si createdAt est invalide, on exclut la ligne (évite des filtres incohérents)
+        if (isNaN(created.getTime())) {
+          return false;
+        }
+
+        const now = new Date();
+
+        // Date locale YYYY-MM-DD
+        const toLocalYMD = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
 
         if (this.selectedPeriod === 'today') {
-          if (createdDate !== todayString) {
+          if (toLocalYMD(created) !== toLocalYMD(now)) {
             return false;
           }
         }
 
         if (this.selectedPeriod === '7days') {
-          const createdTime = new Date(row.createdAt).getTime();
-          const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-          if (createdTime < sevenDaysAgo) {
+          const sevenDaysAgo = new Date(now);
+          sevenDaysAgo.setDate(now.getDate() - 7);
+
+          if (created.getTime() < sevenDaysAgo.getTime()) {
             return false;
           }
         }
@@ -170,11 +185,92 @@ export class Historique implements OnInit {
     });
   }
 
+private formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+
+  if (isNaN(d.getTime())) {
+    return '';
+  }
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+private getTodayFileName(): string {
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${year}-${month}-${day}`;
+}
+
+
+  exporterCSV(): void {
+  if (!this.filteredRows || this.filteredRows.length === 0) {
+    alert('Aucune donnée à exporter.');
+    return;
+  }
+
+  // En-têtes CSV (ordre volontairement clair pour un export métier)
+  const headers = [
+    'Entrepôt',
+    'Immatriculation',
+    'Transporteur',
+    'Statut',
+    'Heure arrivée',
+    'Heure enregistrement',
+    'Début déchargement',
+    'Fin déchargement'
+  ];
+
+  const rows = this.filteredRows.map(row => {
+    const entrepot = this.warehousesOptions.find(w => w.id === row.entrepotId);
+
+    return [
+      entrepot ? entrepot.name : '',
+      row.immatriculation,
+      row.transporteur,
+      row.statut,
+      row.heureArrivee || '',
+      row.createdAt ? this.formatDateTime(row.createdAt) : '',
+      row.debutDechargement ? this.formatDateTime(row.debutDechargement) : '',
+      row.finDechargement ? this.formatDateTime(row.finDechargement) : ''
+    ];
+  });
+
+  // Construction du CSV
+  const csvContent = [
+    headers.join(';'),
+    ...rows.map(r =>
+      r.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')
+    )
+  ].join('\n');
+
+  // Création du fichier téléchargeable
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `historique_camions_${this.getTodayFileName()}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
   // Helpers pour les labels dans le template
-  getStatusCssClass(statut: string): string {
+  getStatusCssClass(statut: TruckStatus): string {
     switch (statut) {
       case 'Déchargé':
         return 'status-pill status-pill--success';
+
       case 'En attente':
         return 'status-pill status-pill--warning';
       case 'Annulé':
@@ -185,4 +281,5 @@ export class Historique implements OnInit {
         return 'status-pill';
     }
   }
+ 
 }

@@ -80,7 +80,6 @@ export class UserEntrepot implements OnInit {
 
   currentTab: 'enregistres' | 'attente' | 'valides' | 'refoules' | 'acceptes' | 'historique' =
     'enregistres';
-
   // Modales
   showEditModal = false;
   showAnalysisModal = false;
@@ -165,6 +164,24 @@ setStatus(s: 'all' | TruckStatus): void {
   this.selectedStatus = s;
   this.showStatusMenu = false;
   this.applyFilters();
+}
+
+private isInSelectedPeriod(dateIso: string): boolean {
+  if (this.selectedPeriod === 'all') return true;
+
+  const created = new Date(dateIso);
+  const now = new Date();
+
+  if (this.selectedPeriod === 'today') {
+    return created.toDateString() === now.toDateString();
+  }
+
+  if (this.selectedPeriod === '7days') {
+    const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    return created.getTime() >= sevenDaysAgo;
+  }
+
+  return true;
 }
 
 // Ancienne logique getList() renommée en "getBaseListForTab"
@@ -318,36 +335,45 @@ applyFilters(): void {
   // ONGLET LISTES
   // =========================================================
   getList(): StoredTruck[] {
-    switch (this.currentTab) {
-      case 'enregistres':
-        return this.trucks.filter((t) => t.statut === 'Enregistré');
+    const source = this.trucksByPeriod;
 
-      case 'attente':
-        return this.trucks.filter((t) => t.statut === 'En attente');
+  switch (this.currentTab) {
+    case 'enregistres':
+      return source.filter(t => t.statut === 'Enregistré');
 
-      case 'valides':
-        return this.trucks.filter(
-          (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-        );
+    case 'attente':
+      return source.filter(t => t.statut === 'En attente');
 
-      case 'refoules':
-        return this.trucks.filter(
-          (t: any) =>
-            t.statut === 'Refoulé' ||
-            (t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT') ||
-            (t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE')
-        );
+    case 'valides':
+      return source.filter(
+        t => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+      );
 
-      case 'acceptes':
-        return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
+    case 'refoules':
+      return source.filter(
+        (t: any) =>
+          t.statut === 'Refoulé' ||
+          (t.statut === 'Annulé' &&
+            (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+             t.advancedStatus === 'REFUSE_RENVOYE'))
+      );
 
-      case 'historique':
-        return this.trucks.filter((t) => t.history.length > 0);
+    case 'acceptes':
+      return source.filter(t => t.advancedStatus === 'ACCEPTE_FINAL');
 
-      default:
-        return [];
-    }
+    case 'historique':
+      return source.filter(t => t.history && t.history.length > 0);
+
+    default:
+      return [];
   }
+  }
+  get trucksByPeriod(): StoredTruck[] {
+  return this.trucks.filter(t =>
+    this.isInSelectedPeriod(t.createdAt)
+  );
+}
+
 // =========================================================
 // HEURE PAR CATÉGORIE (affichée dans la colonne "Heure")
 // =========================================================
@@ -670,32 +696,63 @@ getHourForCurrentTab(t: StoredTruck): string {
   // STATISTIQUES
   // =========================================================
   get totalEnregistres() {
-    return this.trucks.filter((t) => t.statut === 'Enregistré').length;
+    return this.trucksByPeriod.filter(t => t.statut === 'Enregistré').length;
   }
   get totalEnAttente() {
-    return this.trucks.filter((t) => t.statut === 'En attente').length;
+     return this.trucksByPeriod.filter(t => t.statut === 'En attente').length;
   }
  get totalValides() {
   // Validés = Validé mais pas encore accepté
-  return this.trucks.filter(
-    (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-  ).length;
+  return this.trucksByPeriod.filter(t => t.statut === 'Validé').length;
 }
 
   get totalAcceptes() {
-    return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
+   return this.trucksByPeriod.filter(
+    t => t.advancedStatus === 'ACCEPTE_FINAL'
+  ).length;
   }
   get totalRefoules() {
-    return this.trucks.filter(
-      (t: any) =>
-        t.statut === 'Refoulé' ||
-        (t.statut === 'Annulé' &&
-          (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
-            t.advancedStatus === 'REFUSE_RENVOYE'))
-    ).length;
+   return this.trucksByPeriod.filter(
+    (t: any) =>
+      t.statut === 'Refoulé' ||
+      (t.statut === 'Annulé' &&
+        (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+         t.advancedStatus === 'REFUSE_RENVOYE'))
+  ).length;
   }
 
   get historique() {
     return this.trucks.filter((t) => t.history && t.history.length > 0);
   }
+
+  get nbValidesByPeriod(): number {
+  return this.trucksByPeriod.filter(
+    t => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+  ).length;
+}
+
+get nbEnregistresByPeriod(): number {
+  return this.trucksByPeriod.filter(t => t.statut === 'Enregistré').length;
+}
+
+get nbAttenteByPeriod(): number {
+  return this.trucksByPeriod.filter(t => t.statut === 'En attente').length;
+}
+
+get nbRefoulesByPeriod(): number {
+  return this.trucksByPeriod.filter(
+    (t: any) =>
+      t.statut === 'Refoulé' ||
+      (t.statut === 'Annulé' &&
+        (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+         t.advancedStatus === 'REFUSE_RENVOYE'))
+  ).length;
+}
+
+get nbAcceptesByPeriod(): number {
+  return this.trucksByPeriod.filter(
+    t => t.advancedStatus === 'ACCEPTE_FINAL'
+  ).length;
+}
+
 }

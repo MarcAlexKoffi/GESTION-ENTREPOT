@@ -57,9 +57,13 @@ export class Entrepot implements OnInit {
     nom: '',
     lieu: '',
   };
+  searchTerm: string = '';
+  selectedPeriod: 'today' | '7days' | '30days' | 'all' = 'today';
 
   // Ajout de la nouvelle catégorie RENVOYÉS
   currentTab: 'pending' | 'validated' | 'accepted' | 'cancelled' | 'renvoyes' = 'pending';
+
+  showPeriodDropdown = false;
   showDetailsModal = false;
   showHistoryModal = false;
   historyTruck: Truck | null = null;
@@ -185,6 +189,27 @@ export class Entrepot implements OnInit {
     return undefined;
   }
 
+  private isInSelectedPeriod(dateIso: string): boolean {
+    if (this.selectedPeriod === 'all') return true;
+
+    const created = new Date(dateIso);
+    const now = new Date();
+
+    if (this.selectedPeriod === 'today') {
+      return created.toDateString() === now.toDateString();
+    }
+
+    if (this.selectedPeriod === '7days') {
+      const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+      return created.getTime() >= sevenDaysAgo;
+    }
+    if (this.selectedPeriod === '30days') {
+  const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  return created.getTime() >= thirtyDaysAgo;
+}
+    return true;
+  }
+
   getHourForCurrentTab(t: Truck): string {
     const fallback = t.createdAt || '';
 
@@ -242,34 +267,72 @@ export class Entrepot implements OnInit {
   }
 
   get filteredTrucks(): Truck[] {
-    switch (this.currentTab) {
-      case 'pending':
-        return this.trucks.filter((t) => t.statut === 'En attente');
+  const source = this.filteredTrucksBase;
 
-      case 'validated':
-        return this.trucks.filter(
-          (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-        );
+  switch (this.currentTab) {
+    case 'pending':
+      return source.filter(t => t.statut === 'En attente');
 
-      case 'cancelled':
-        // Refoulés mais PAS renvoyés
-        return this.trucks.filter(
-          (t: any) => t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'
-        );
+    case 'validated':
+      return source.filter(
+        (t: any) =>
+          t.statut === 'Validé' &&
+          t.advancedStatus !== 'ACCEPTE_FINAL'
+      );
 
-      case 'renvoyes':
-        // RENVOYÉS par le gérant
-        return this.trucks.filter(
-          (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
-        );
-      case 'accepted':
-        return this.trucks.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL');
+    case 'accepted':
+      return source.filter(
+        (t: any) => t.advancedStatus === 'ACCEPTE_FINAL'
+      );
 
-      default:
-        return this.trucks;
-    }
+    case 'cancelled':
+      return source.filter(
+        (t: any) =>
+          t.statut === 'Annulé' &&
+          t.advancedStatus !== 'REFUSE_RENVOYE'
+      );
+
+    case 'renvoyes':
+      return source.filter(
+        (t: any) =>
+          t.statut === 'Annulé' &&
+          t.advancedStatus === 'REFUSE_RENVOYE'
+      );
+
+    default:
+      return [];
   }
+}
 
+
+  get filteredTrucksBase(): Truck[] {
+    const search = this.searchTerm.trim().toLowerCase();
+
+    return this.trucks.filter((t) => {
+      // 🔍 recherche texte
+      if (search) {
+        const haystack = `${t.immatriculation} ${t.transporteur}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+
+      // période
+      return this.isInSelectedPeriod(t.createdAt);
+    });
+  }
+get selectedPeriodLabel(): string {
+  switch (this.selectedPeriod) {
+    case 'today':
+      return "Aujourd'hui";
+    case '7days':
+      return '7 derniers jours';
+    case '30days':
+      return '30 derniers jours';
+    case 'all':
+      return 'Toutes périodes';
+    default:
+      return 'Toutes périodes';
+  }
+}
   // ================================================================
   // MODAL "VOIR PLUS"
   // ================================================================
@@ -348,27 +411,27 @@ export class Entrepot implements OnInit {
     this.saveTrucks();
     this.closeDetailsModal();
   }
-// ================================================================
-// HISTORIQUE (ADMIN) – même logique que côté user
-// ================================================================
-openHistoryModal(truck: Truck): void {
-  this.historyTruck = truck;
-  this.showHistoryModal = true;
-}
+  // ================================================================
+  // HISTORIQUE (ADMIN) – même logique que côté user
+  // ================================================================
+  openHistoryModal(truck: Truck): void {
+    this.historyTruck = truck;
+    this.showHistoryModal = true;
+  }
 
-closeHistoryModal(): void {
-  this.showHistoryModal = false;
-  this.historyTruck = null;
-}
-// ================================================================
-// IMPRESSION CAMION
-// ================================================================
-printSelectedTruck(): void {
-  if (!this.selectedTruck) return;
+  closeHistoryModal(): void {
+    this.showHistoryModal = false;
+    this.historyTruck = null;
+  }
+  // ================================================================
+  // IMPRESSION CAMION
+  // ================================================================
+  printSelectedTruck(): void {
+    if (!this.selectedTruck) return;
 
-  const truck = this.selectedTruck;
+    const truck = this.selectedTruck;
 
-  const content = `
+    const content = `
     <h2>Détails du camion</h2>
     <p><strong>Immatriculation :</strong> ${truck.immatriculation}</p>
     <p><strong>Transporteur :</strong> ${truck.transporteur}</p>
@@ -378,10 +441,10 @@ printSelectedTruck(): void {
     <p><strong>Heure d’arrivée :</strong> ${truck.heureArrivee}</p>
   `;
 
-  const win = window.open('', '_blank', 'width=800,height=600');
-  if (!win) return;
+    const win = window.open('', '_blank', 'width=800,height=600');
+    if (!win) return;
 
-  win.document.write(`
+    win.document.write(`
     <html>
       <head>
         <title>Impression camion</title>
@@ -401,39 +464,41 @@ printSelectedTruck(): void {
     </html>
   `);
 
-  win.document.close();
-}
+    win.document.close();
+  }
 
   // ================================================================
   // STATISTIQUES
   // ================================================================
   get totalCamionsArrives(): number {
-    return this.trucks.length;
+    return this.filteredTrucksBase.length;
   }
 
   get nbPending(): number {
-    return this.trucks.filter((t) => t.statut === 'En attente').length;
+    return this.filteredTrucksBase.filter((t) => t.statut === 'En attente').length;
   }
 
   get nbValidated(): number {
-    // ✅ Validés = Validé mais pas encore accepté définitivement
-    return this.trucks.filter(
+    return this.filteredTrucksBase.filter(
       (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
     ).length;
   }
 
-  get nbAccepted(): number {
-    return this.trucks.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL').length;
-  }
+ get nbAccepted(): number {
+  return this.filteredTrucksBase.filter(
+    (t: any) => t.advancedStatus === 'ACCEPTE_FINAL'
+  ).length;
+}
+
 
   get nbCancelled(): number {
-    return this.trucks.filter(
+    return this.filteredTrucksBase.filter(
       (t: any) => t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'
     ).length;
   }
 
   get nbRenvoyes(): number {
-    return this.trucks.filter(
+    return this.filteredTrucksBase.filter(
       (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
     ).length;
   }
@@ -448,4 +513,17 @@ printSelectedTruck(): void {
   isRefused(truck: Truck): boolean {
     return truck.statut === 'Annulé';
   }
+
+  togglePeriodDropdown(): void {
+  this.showPeriodDropdown = !this.showPeriodDropdown;
+}
+
+closePeriodDropdown(): void {
+  this.showPeriodDropdown = false;
+}
+
+setPeriod(value: 'today' | '7days' | '30days' | 'all'): void {
+  this.selectedPeriod = value;
+  this.closePeriodDropdown();
+}
 }

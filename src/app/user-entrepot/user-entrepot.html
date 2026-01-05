@@ -87,7 +87,7 @@
               (click)="currentTab = 'enregistres'; applyFilters(); $event.preventDefault()"
             >
               Enregistrés
-              <span class="tab-pill">{{ totalEnregistres }}</span>
+              <span class="tab-pill">{{ nbEnregistresByPeriod }}</span>
             </a>
             <a
               href="#"
@@ -96,7 +96,7 @@
               (click)="currentTab = 'attente'; applyFilters(); $event.preventDefault()"
             >
               En attente
-              <span class="tab-pill">{{ totalEnAttente }}</span>
+              <span class="tab-pill">{{ nbAttenteByPeriod }}</span>
             </a>
 
             <a
@@ -106,9 +106,8 @@
               (click)="currentTab = 'valides'; applyFilters(); $event.preventDefault()"
             >
               Validés
-              <span class="tab-pill">{{ totalValides }}</span>
+              <span class="tab-pill">{{ nbValidesByPeriod }}</span>
             </a>
-
             <a
               href="#"
               class="tab-link"
@@ -116,7 +115,7 @@
               (click)="currentTab = 'refoules'; applyFilters(); $event.preventDefault()"
             >
               Refoulés
-              <span class="tab-pill">{{ totalRefoules }}</span>
+              <span class="tab-pill">{{ nbRefoulesByPeriod }}</span>
             </a>
 
             <a
@@ -126,9 +125,8 @@
               (click)="currentTab = 'acceptes'; applyFilters(); $event.preventDefault()"
             >
               Acceptés
-              <span class="tab-pill">{{ totalAcceptes }}</span>
+              <span class="tab-pill">{{ nbAcceptesByPeriod }}</span>
             </a>
-
             <a
               href="#"
               class="tab-link"
@@ -136,7 +134,7 @@
               (click)="currentTab = 'historique'; applyFilters(); $event.preventDefault()"
             >
               Historique
-              <span class="tab-pill">{{ historique.length }}</span>
+              <!-- <span class="tab-pill">{{ historique.length }}</span> -->
             </a>
           </div>
         </section>

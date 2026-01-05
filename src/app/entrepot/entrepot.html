@@ -53,20 +53,40 @@
               <div class="search-icon">
                 <span class="material-symbols-outlined">search</span>
               </div>
-              <input type="text" class="search-input" placeholder="Rechercher..." />
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Rechercher..."
+                [(ngModel)]="searchTerm"
+              />
             </div>
 
-            <button type="button" class="filter-button">
+            <div class="period-chip" (click)="togglePeriodDropdown()">
               <span class="material-symbols-outlined">calendar_today</span>
-              <span>Aujourd'hui</span>
-              <span class="material-symbols-outlined">arrow_drop_down</span>
-            </button>
 
-            <button type="button" class="filter-button">
-              <span class="material-symbols-outlined">filter_list</span>
-              <span>Statut</span>
-              <span class="material-symbols-outlined">arrow_drop_down</span>
-            </button>
+              <span class="period-value">{{ selectedPeriodLabel }}</span>
+
+              <span class="material-symbols-outlined period-caret">expand_more</span>
+
+              <div
+                class="period-menu"
+                *ngIf="showPeriodDropdown"
+                (click)="$event.stopPropagation()"
+              >
+                <button type="button" class="period-item" (click)="setPeriod('today')">
+                  Aujourd'hui
+                </button>
+                <button type="button" class="period-item" (click)="setPeriod('7days')">
+                  7 derniers jours
+                </button>
+                <button type="button" class="period-item" (click)="setPeriod('30days')">
+                  30 derniers jours
+                </button>
+                <button type="button" class="period-item" (click)="setPeriod('all')">
+                  Toutes périodes
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -171,7 +191,6 @@
                     >
                       Validé
                     </span>
-
                     <span
                       *ngIf="t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'"
                       class="status-pill status-pill--cancelled"
@@ -289,40 +308,27 @@
   <!-- ============================
      MODALE HISTORIQUE CAMION
      ============================ -->
-<div class="modal" *ngIf="showHistoryModal">
-  <div class="truck-modal">
-
-    <div class="truck-modal-header">
-      <h2>Historique du camion</h2>
-      <button class="close-btn" (click)="closeHistoryModal()">✕</button>
-    </div>
-
-    <div class="truck-modal-body" *ngIf="historyTruck">
-      <div
-        *ngIf="!historyTruck.history || historyTruck.history.length === 0"
-        class="notif-empty"
-      >
-        Aucun historique disponible.
+  <div class="modal" *ngIf="showHistoryModal">
+    <div class="truck-modal">
+      <div class="truck-modal-header">
+        <h2>Historique du camion</h2>
+        <button class="close-btn" (click)="closeHistoryModal()">✕</button>
       </div>
 
-      <div
-        *ngFor="let h of historyTruck.history"
-        class="history-item"
-      >
-        <div class="history-event">{{ h.event }}</div>
-        <div class="history-meta">
-          {{ h.by }} — {{ h.date | date:'short' }}
+      <div class="truck-modal-body" *ngIf="historyTruck">
+        <div *ngIf="!historyTruck.history || historyTruck.history.length === 0" class="notif-empty">
+          Aucun historique disponible.
+        </div>
+
+        <div *ngFor="let h of historyTruck.history" class="history-item">
+          <div class="history-event">{{ h.event }}</div>
+          <div class="history-meta">{{ h.by }} — {{ h.date | date : 'short' }}</div>
         </div>
       </div>
-    </div>
 
-    <div class="truck-modal-footer">
-      <button class="truck-submit" (click)="closeHistoryModal()">
-        Fermer
-      </button>
+      <div class="truck-modal-footer">
+        <button class="truck-submit" (click)="closeHistoryModal()">Fermer</button>
+      </div>
     </div>
-
   </div>
-</div>
-
 </div>
