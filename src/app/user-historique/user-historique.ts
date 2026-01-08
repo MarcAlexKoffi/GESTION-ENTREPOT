@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+
+type TruckStatus = 'En attente' | 'En cours de déchargement' | 'Déchargé' | 'Annulé';
 
 interface StoredTruck {
   id: number;
@@ -9,7 +12,7 @@ interface StoredTruck {
   transporteur: string;
   transfert: string;
   kor: string;
-  statut: string; // 'En attente' | 'En cours de déchargement' | 'Déchargé' | 'Annulé'
+  statut: TruckStatus;
   heureArrivee: string;
   createdAt: string; // date ISO
   debutDechargement?: string;
@@ -31,7 +34,7 @@ interface TruckHistoryRow {
   heureArrivee: string;
   debutDechargement: string;
   finDechargement: string;
-  statut: string;
+  statut: TruckStatus;
   createdAt: string; // utile pour le filtre par période
 }
 
@@ -43,6 +46,10 @@ interface TruckHistoryRow {
   styleUrl: './user-historique.scss',
 })
 export class UserHistorique implements OnInit {
+  entrepotId: number | null = null;
+
+  constructor(private route: ActivatedRoute) {}
+
   // toutes les lignes (avant filtre)
   allRows: TruckHistoryRow[] = [];
 
@@ -50,55 +57,20 @@ export class UserHistorique implements OnInit {
   filteredRows: TruckHistoryRow[] = [];
 
   // champs de filtre
-  searchTerm: string = '';
-  selectedStatus: string = 'Tous';
-  selectedPeriod: string = 'Toutes';
+  searchTerm = '';
+  selectedWarehouseId: number | 'all' = 'all';
+  selectedStatus: TruckStatus | 'all' = 'all';
+  selectedPeriod: 'today' | '7days' | 'all' = 'all';
 
   // options pour la liste des entrepôts
   warehousesOptions: StoredWarehouse[] = [];
 
   ngOnInit(): void {
+    const idParam =
+      this.route.snapshot.paramMap.get('id') ?? this.route.snapshot.queryParamMap.get('entrepotId');
+    this.entrepotId = idParam ? Number(idParam) : null;
     this.loadDataFromLocalStorage();
-    this.filteredRows = [...this.allRows];
-  }
-
-  applyFilters(): void {
-    this.filteredRows = this.allRows.filter((row) => {
-      /* 🔍 Recherche */
-      const search = this.searchTerm.toLowerCase();
-
-      const matchesSearch =
-        row.immatriculation?.toLowerCase().includes(search) ||
-        row.transporteur?.toLowerCase().includes(search);
-
-      /* Statut */
-      const matchesStatus = this.selectedStatus === 'Tous' || row.statut === this.selectedStatus;
-
-      /* Période */
-      let matchesPeriod = true;
-
-      if (this.selectedPeriod !== 'Toutes') {
-        const rowDate = new Date(row.createdAt);
-        const today = new Date();
-
-        if (this.selectedPeriod === 'Aujourd’hui') {
-          matchesPeriod = rowDate.toDateString() === today.toDateString();
-        }
-
-        if (this.selectedPeriod === '7 derniers jours') {
-          const d = new Date();
-          d.setDate(today.getDate() - 7);
-          matchesPeriod = rowDate >= d;
-        }
-
-        if (this.selectedPeriod === '30 derniers jours') {
-          const d = new Date();
-          d.setDate(today.getDate() - 30);
-          matchesPeriod = rowDate >= d;
-        }
-      }
-      return matchesSearch && matchesStatus && matchesPeriod;
-    });
+    this.applyFilters();
   }
 
   // Charge les entrepôts + camions depuis le localStorage
@@ -124,18 +96,16 @@ export class UserHistorique implements OnInit {
     let trucks: StoredTruck[] = [];
     try {
       trucks = JSON.parse(rawTrucks) as StoredTruck[];
-      // Filtrage user : uniquement l'entrepôt assigné
-      const rawUser = localStorage.getItem('currentUser');
-      let currentUser: any = null;
-      try {
-        currentUser = rawUser ? JSON.parse(rawUser) : null;
-      } catch {
-        currentUser = null;
+      // Sécurité : côté user, on ne doit afficher que les camions de SON entrepôt
+      if (this.entrepotId === null || Number.isNaN(this.entrepotId)) {
+        console.warn(
+          '[user-historique] Aucun entrepotId trouvé dans la route. Historique vide par sécurité.'
+        );
+        this.allRows = [];
+        return;
       }
 
-      if (currentUser?.entrepotId !== null && currentUser?.entrepotId !== undefined) {
-        trucks = trucks.filter((t) => t.entrepotId === currentUser.entrepotId);
-      }
+      trucks = trucks.filter((t) => t.entrepotId === this.entrepotId);
     } catch (e) {
       console.error('Erreur parsing trucks', e);
       trucks = [];
@@ -163,11 +133,159 @@ export class UserHistorique implements OnInit {
     this.allRows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  // Applique tous les filtres à la fois
+  applyFilters(): void {
+    const search = this.searchTerm.trim().toLowerCase();
+
+    const now = new Date();
+    const todayString = now.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+    this.filteredRows = this.allRows.filter((row) => {
+      // 1) Filtre texte (immat OU transporteur)
+      if (search) {
+        const haystack = (row.immatriculation + ' ' + row.transporteur).toLowerCase();
+        if (!haystack.includes(search)) {
+          return false;
+        }
+      }
+
+      // 2) Filtre entrepôt
+      if (this.selectedWarehouseId !== 'all') {
+        if (row.entrepotId !== this.selectedWarehouseId) {
+          return false;
+        }
+      }
+
+      // 3) Filtre statut
+      if (this.selectedStatus !== 'all') {
+        if (row.statut !== this.selectedStatus) {
+          return false;
+        }
+      }
+
+      // 4) Filtre période
+      // 4) Filtre période (basé sur la date locale, plus fiable que UTC)
+      if (this.selectedPeriod !== 'all') {
+        const created = new Date(row.createdAt);
+
+        // Si createdAt est invalide, on exclut la ligne (évite des filtres incohérents)
+        if (isNaN(created.getTime())) {
+          return false;
+        }
+
+        const now = new Date();
+
+        // Date locale YYYY-MM-DD
+        const toLocalYMD = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+
+        if (this.selectedPeriod === 'today') {
+          if (toLocalYMD(created) !== toLocalYMD(now)) {
+            return false;
+          }
+        }
+
+        if (this.selectedPeriod === '7days') {
+          const sevenDaysAgo = new Date(now);
+          sevenDaysAgo.setDate(now.getDate() - 7);
+
+          if (created.getTime() < sevenDaysAgo.getTime()) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }
+
+  private formatDateTime(dateStr: string): string {
+    const d = new Date(dateStr);
+
+    if (isNaN(d.getTime())) {
+      return '';
+    }
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  }
+
+  private getTodayFileName(): string {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    return `${year}-${month}-${day}`;
+  }
+
+  exporterCSV(): void {
+    if (!this.filteredRows || this.filteredRows.length === 0) {
+      alert('Aucune donnée à exporter.');
+      return;
+    }
+
+    // En-têtes CSV (ordre volontairement clair pour un export métier)
+    const headers = [
+      'Entrepôt',
+      'Immatriculation',
+      'Transporteur',
+      'Statut',
+      'Heure arrivée',
+      'Heure enregistrement',
+      'Début déchargement',
+      'Fin déchargement',
+    ];
+
+    const rows = this.filteredRows.map((row) => {
+      const entrepot = this.warehousesOptions.find((w) => w.id === row.entrepotId);
+
+      return [
+        entrepot ? entrepot.name : '',
+        row.immatriculation,
+        row.transporteur,
+        row.statut,
+        row.heureArrivee || '',
+        row.createdAt ? this.formatDateTime(row.createdAt) : '',
+        row.debutDechargement ? this.formatDateTime(row.debutDechargement) : '',
+        row.finDechargement ? this.formatDateTime(row.finDechargement) : '',
+      ];
+    });
+
+    // Construction du CSV
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map((r) => r.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';')),
+    ].join('\n');
+
+    // Création du fichier téléchargeable
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historique_camions_${this.getTodayFileName()}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
   // Helpers pour les labels dans le template
-  getStatusCssClass(statut: string): string {
+  getStatusCssClass(statut: TruckStatus): string {
     switch (statut) {
       case 'Déchargé':
         return 'status-pill status-pill--success';
+
       case 'En attente':
         return 'status-pill status-pill--warning';
       case 'Annulé':
@@ -179,55 +297,14 @@ export class UserHistorique implements OnInit {
     }
   }
 
-  exportCsv(): void {
-    if (!this.filteredRows || this.filteredRows.length === 0) {
-      alert('Aucune donnée à exporter.');
-      return;
+  formatHeure(date?: string): string {
+    if (!date) {
+      return '-';
     }
 
-    // En-têtes CSV (dans l’ordre du tableau)
-    const headers = [
-      'Entrepôt',
-      'Immatriculation',
-      'Transporteur',
-      'KOR',
-      'Heure arrivée',
-      'Début déchargement',
-      'Fin déchargement',
-      'Statut',
-    ];
-
-    // Lignes CSV
-    const rows = this.filteredRows.map((row) => [
-      row.entrepotName,
-      row.immatriculation,
-      row.transporteur,
-      row.kor || '',
-      row.heureArrivee,
-      row.debutDechargement,
-      row.finDechargement,
-      row.statut,
-    ]);
-
-    // Construction du contenu CSV
-    const csvContent = [headers, ...rows]
-      .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
-      .join('\n');
-
-    // Création du fichier
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csvContent], {
-      type: 'text/csv;charset=utf-8;',
+    return new Date(date).toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
-
-    const url = window.URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `historique_passages_${new Date().toISOString().slice(0, 10)}.csv`;
-
-    link.click();
-
-    window.URL.revokeObjectURL(url);
   }
 }

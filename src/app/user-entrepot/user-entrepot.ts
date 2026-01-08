@@ -119,161 +119,176 @@ export class UserEntrepot implements OnInit {
   };
 
   constructor(private route: ActivatedRoute) {}
-// ===============================
-// FILTRES (toolbar)
-// ===============================
-filterSearch = '';
-selectedPeriod: 'all' | 'today' | '7days' | '30days' = 'today';
-selectedStatus: 'all' | TruckStatus = 'all';
+  // ===============================
+  // FILTRES (toolbar)
+  // ===============================
+  filterSearch = '';
+  selectedPeriod: 'all' | 'today' | '7days' | '30days' = 'today';
+  selectedStatus: 'all' | TruckStatus = 'all';
 
-showPeriodMenu = false;
-showStatusMenu = false;
+  showPeriodMenu = false;
+  showStatusMenu = false;
 
-filteredTrucks: StoredTruck[] = [];
+  filteredTrucks: StoredTruck[] = [];
 
-get periodLabel(): string {
-  switch (this.selectedPeriod) {
-    case 'today': return "Aujourd'hui";
-    case '7days': return '7 derniers jours';
-    case '30days': return '30 derniers jours';
-    default: return 'Toutes périodes';
-  }
-}
-
-get statusLabel(): string {
-  return this.selectedStatus === 'all' ? 'Tous statuts' : this.selectedStatus;
-}
-
-togglePeriodMenu(): void {
-  this.showPeriodMenu = !this.showPeriodMenu;
-  this.showStatusMenu = false;
-}
-
-toggleStatusMenu(): void {
-  this.showStatusMenu = !this.showStatusMenu;
-  this.showPeriodMenu = false;
-}
-
-setPeriod(p: 'all' | 'today' | '7days' | '30days'): void {
-  this.selectedPeriod = p;
-  this.showPeriodMenu = false;
-  this.applyFilters();
-}
-
-setStatus(s: 'all' | TruckStatus): void {
-  this.selectedStatus = s;
-  this.showStatusMenu = false;
-  this.applyFilters();
-}
-
-private isInSelectedPeriod(dateIso: string): boolean {
-  if (this.selectedPeriod === 'all') return true;
-
-  const created = new Date(dateIso);
-  const now = new Date();
-
-  if (this.selectedPeriod === 'today') {
-    return created.toDateString() === now.toDateString();
+  get periodLabel(): string {
+    switch (this.selectedPeriod) {
+      case 'today':
+        return "Aujourd'hui";
+      case '7days':
+        return '7 derniers jours';
+      case '30days':
+        return '30 derniers jours';
+      default:
+        return 'Toutes périodes';
+    }
   }
 
-  if (this.selectedPeriod === '7days') {
-    const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-    return created.getTime() >= sevenDaysAgo;
+  get statusLabel(): string {
+    return this.selectedStatus === 'all' ? 'Tous statuts' : this.selectedStatus;
   }
 
-  return true;
-}
-
-// Ancienne logique getList() renommée en "getBaseListForTab"
-private getBaseListForTab(): StoredTruck[] {
-  switch (this.currentTab) {
-    case 'enregistres':
-      return this.trucks.filter((t) => t.statut === 'Enregistré');
-
-    case 'attente':
-      return this.trucks.filter((t) => t.statut === 'En attente');
-
-    case 'valides':
-      return this.trucks.filter(
-        (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-      );
-
-    case 'refoules':
-      return this.trucks.filter(
-        (t: any) =>
-          t.statut === 'Refoulé' ||
-          (t.statut === 'Annulé' &&
-            (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
-              t.advancedStatus === 'REFUSE_RENVOYE'))
-      );
-
-    case 'acceptes':
-      return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
-
-    case 'historique':
-      return this.trucks.filter((t) => t.history.length > 0);
-
-    default:
-      return [];
+  togglePeriodMenu(): void {
+    this.showPeriodMenu = !this.showPeriodMenu;
+    this.showStatusMenu = false;
   }
-}
 
-applyFilters(): void {
-  const base = this.getBaseListForTab();
+  toggleStatusMenu(): void {
+    this.showStatusMenu = !this.showStatusMenu;
+    this.showPeriodMenu = false;
+  }
 
-  const search = this.filterSearch.trim().toLowerCase();
-  const now = new Date();
+  setPeriod(p: 'all' | 'today' | '7days' | '30days'): void {
+    this.selectedPeriod = p;
+    this.showPeriodMenu = false;
+    this.applyFilters();
+  }
 
-  // helper date
-  const isToday = (iso: string) => {
-    const d = new Date(iso);
-    return (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      d.getDate() === now.getDate()
-    );
-  };
+  setStatus(s: 'all' | TruckStatus): void {
+    this.selectedStatus = s;
+    this.showStatusMenu = false;
+    this.applyFilters();
+  }
 
-  const inLastDays = (iso: string, days: number) => {
-    const d = new Date(iso).getTime();
-    const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
-    return d >= limit;
-  };
+  private isInSelectedPeriod(dateIso: string): boolean {
+    if (this.selectedPeriod === 'all') return true;
 
-  this.filteredTrucks = base.filter((t) => {
-    // 1) Recherche
-    if (search) {
-      const haystack = (
-        (t.immatriculation ?? '') + ' ' +
-        (t.transporteur ?? '') + ' ' +
-        (t.transfert ?? '') + ' ' +
-        ((t as any).coperative ?? '')
-      ).toLowerCase();
+    const created = new Date(dateIso);
+    const now = new Date();
 
-      if (!haystack.includes(search)) return false;
+    if (this.selectedPeriod === 'today') {
+      return created.toDateString() === now.toDateString();
     }
 
-    // 2) Statut
-    if (this.selectedStatus !== 'all') {
-      if (t.statut !== this.selectedStatus) return false;
-    }
-
-    // 3) Période (basée sur createdAt)
-    if (this.selectedPeriod !== 'all') {
-      if (!t.createdAt) return false;
-
-      if (this.selectedPeriod === 'today' && !isToday(t.createdAt)) return false;
-      if (this.selectedPeriod === '7days' && !inLastDays(t.createdAt, 7)) return false;
-      if (this.selectedPeriod === '30days' && !inLastDays(t.createdAt, 30)) return false;
+    if (this.selectedPeriod === '7days') {
+      const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+      return created.getTime() >= sevenDaysAgo;
     }
 
     return true;
-  });
-}
+  }
+
+  // Ancienne logique getList() renommée en "getBaseListForTab"
+  private getBaseListForTab(): StoredTruck[] {
+    switch (this.currentTab) {
+      case 'enregistres':
+        return this.trucks.filter((t) => t.statut === 'Enregistré');
+
+      case 'attente':
+        return this.trucks.filter((t) => t.statut === 'En attente');
+
+      case 'valides':
+        return this.trucks.filter(
+          (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+        );
+
+      case 'refoules':
+        return this.trucks.filter(
+          (t: any) =>
+            t.statut === 'Refoulé' ||
+            (t.statut === 'Annulé' &&
+              (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+                t.advancedStatus === 'REFUSE_RENVOYE'))
+        );
+
+      case 'acceptes':
+        return this.trucks.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
+
+      case 'historique':
+        return this.trucks.filter((t) => t.history.length > 0);
+
+      default:
+        return [];
+    }
+  }
+
+  applyFilters(): void {
+    const base = this.getBaseListForTab();
+
+    const search = this.filterSearch.trim().toLowerCase();
+    const now = new Date();
+
+    // helper date
+    const isToday = (iso: string) => {
+      const d = new Date(iso);
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    };
+
+    const inLastDays = (iso: string, days: number) => {
+      const d = new Date(iso).getTime();
+      const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
+      return d >= limit;
+    };
+
+    this.filteredTrucks = base.filter((t) => {
+      // 1) Recherche
+      if (search) {
+        const haystack = (
+          (t.immatriculation ?? '') +
+          ' ' +
+          (t.transporteur ?? '') +
+          ' ' +
+          (t.transfert ?? '') +
+          ' ' +
+          ((t as any).coperative ?? '')
+        ).toLowerCase();
+
+        if (!haystack.includes(search)) return false;
+      }
+
+      // 2) Statut
+      if (this.selectedStatus !== 'all') {
+        if (t.statut !== this.selectedStatus) return false;
+      }
+
+      // 3) Période (basée sur createdAt)
+      if (this.selectedPeriod !== 'all') {
+        if (!t.createdAt) return false;
+
+        if (this.selectedPeriod === 'today' && !isToday(t.createdAt)) return false;
+        if (this.selectedPeriod === '7days' && !inLastDays(t.createdAt, 7)) return false;
+        if (this.selectedPeriod === '30days' && !inLastDays(t.createdAt, 30)) return false;
+      }
+
+      return true;
+    });
+  }
 
   ngOnInit(): void {
     this.loadEntrepot();
     this.loadTrucksFromStorage();
+    this.applyFilters();
+  }
+
+  private refreshView(): void {
+    // Recharge depuis localStorage + filtre par entrepôt + sécurise les champs
+    this.loadTrucksFromStorage();
+
+    // Recalcule la liste affichée selon l’onglet + filtres
     this.applyFilters();
   }
 
@@ -337,118 +352,115 @@ applyFilters(): void {
   getList(): StoredTruck[] {
     const source = this.trucksByPeriod;
 
-  switch (this.currentTab) {
-    case 'enregistres':
-      return source.filter(t => t.statut === 'Enregistré');
+    switch (this.currentTab) {
+      case 'enregistres':
+        return source.filter((t) => t.statut === 'Enregistré');
 
-    case 'attente':
-      return source.filter(t => t.statut === 'En attente');
+      case 'attente':
+        return source.filter((t) => t.statut === 'En attente');
 
-    case 'valides':
-      return source.filter(
-        t => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-      );
+      case 'valides':
+        return source.filter((t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL');
 
-    case 'refoules':
-      return source.filter(
-        (t: any) =>
-          t.statut === 'Refoulé' ||
-          (t.statut === 'Annulé' &&
-            (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
-             t.advancedStatus === 'REFUSE_RENVOYE'))
-      );
+      case 'refoules':
+        return source.filter(
+          (t: any) =>
+            t.statut === 'Refoulé' ||
+            (t.statut === 'Annulé' &&
+              (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+                t.advancedStatus === 'REFUSE_RENVOYE'))
+        );
 
-    case 'acceptes':
-      return source.filter(t => t.advancedStatus === 'ACCEPTE_FINAL');
+      case 'acceptes':
+        return source.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL');
 
-    case 'historique':
-      return source.filter(t => t.history && t.history.length > 0);
+      case 'historique':
+        return source.filter((t) => t.history && t.history.length > 0);
 
-    default:
-      return [];
-  }
+      default:
+        return [];
+    }
   }
   get trucksByPeriod(): StoredTruck[] {
-  return this.trucks.filter(t =>
-    this.isInSelectedPeriod(t.createdAt)
-  );
-}
-
-// =========================================================
-// HEURE PAR CATÉGORIE (affichée dans la colonne "Heure")
-// =========================================================
-private formatHourFromIso(iso?: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-private findHistoryDate(truck: StoredTruck, event: string): string | undefined {
-  const list = truck.history || [];
-  // On cherche la dernière occurrence de cet event (plus récent)
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i]?.event === event && list[i]?.date) return list[i].date;
+    return this.trucks.filter((t) => this.isInSelectedPeriod(t.createdAt));
   }
-  return undefined;
-}
 
-/** Heure à afficher selon l’onglet actif */
-getHourForCurrentTab(t: StoredTruck): string {
-  // fallback : heureArrivee (ancienne logique) si vraiment rien
-  const fallback = t.createdAt || '';
-
-  switch (this.currentTab) {
-    case 'enregistres': {
-      const iso = this.findHistoryDate(t, 'Camion enregistré') || t.createdAt || fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'attente': {
-      const iso =
-        this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'valides': {
-      const iso =
-        // si tu remplis un jour validatedAt, il sera prioritaire
-        (t as any).validatedAt ||
-        this.findHistoryDate(t, 'Validation administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'refoules': {
-      const iso =
-        (t as any).refusedAt ||
-        this.findHistoryDate(t, 'Refus administrateur') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'acceptes': {
-      const iso =
-        t.finalAcceptedAt ||
-        this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
-        t.createdAt ||
-        fallback;
-      return this.formatHourFromIso(iso);
-    }
-
-    case 'historique': {
-      const last = (t.history && t.history.length > 0) ? t.history[t.history.length - 1]?.date : undefined;
-      return this.formatHourFromIso(last || t.createdAt || fallback);
-    }
-
-    default:
-      return this.formatHourFromIso(t.createdAt || fallback);
+  // =========================================================
+  // HEURE PAR CATÉGORIE (affichée dans la colonne "Heure")
+  // =========================================================
+  private formatHourFromIso(iso?: string): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-}
+
+  private findHistoryDate(truck: StoredTruck, event: string): string | undefined {
+    const list = truck.history || [];
+    // On cherche la dernière occurrence de cet event (plus récent)
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i]?.event === event && list[i]?.date) return list[i].date;
+    }
+    return undefined;
+  }
+
+  /** Heure à afficher selon l’onglet actif */
+  getHourForCurrentTab(t: StoredTruck): string {
+    // fallback : heureArrivee (ancienne logique) si vraiment rien
+    const fallback = t.createdAt || '';
+
+    switch (this.currentTab) {
+      case 'enregistres': {
+        const iso = this.findHistoryDate(t, 'Camion enregistré') || t.createdAt || fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'attente': {
+        const iso =
+          this.findHistoryDate(t, 'Analyses envoyées à l’administrateur') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'valides': {
+        const iso =
+          // si tu remplis un jour validatedAt, il sera prioritaire
+          (t as any).validatedAt ||
+          this.findHistoryDate(t, 'Validation administrateur') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'refoules': {
+        const iso =
+          (t as any).refusedAt ||
+          this.findHistoryDate(t, 'Refus administrateur') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'acceptes': {
+        const iso =
+          t.finalAcceptedAt ||
+          this.findHistoryDate(t, 'Détails produits renseignés — Camion accepté') ||
+          t.createdAt ||
+          fallback;
+        return this.formatHourFromIso(iso);
+      }
+
+      case 'historique': {
+        const last =
+          t.history && t.history.length > 0 ? t.history[t.history.length - 1]?.date : undefined;
+        return this.formatHourFromIso(last || t.createdAt || fallback);
+      }
+
+      default:
+        return this.formatHourFromIso(t.createdAt || fallback);
+    }
+  }
 
   // =========================================================
   // AJOUT CAMION
@@ -504,6 +516,7 @@ getHourForCurrentTab(t: StoredTruck): string {
 
     this.trucks.push(truck);
     this.saveTrucks();
+    this.refreshView();
 
     this.lastSavedStatutLabel = 'Enregistré';
     this.showSuccessBanner = true;
@@ -561,6 +574,7 @@ getHourForCurrentTab(t: StoredTruck): string {
 
     this.addHistory(t, 'Analyses envoyées à l’administrateur');
     this.saveTrucks();
+    this.refreshView();
     this.showAnalysisModal = false;
   }
 
@@ -595,16 +609,15 @@ getHourForCurrentTab(t: StoredTruck): string {
     t.kor = (this.productForm.kor || '').trim();
 
     // Champs produits
-   const toStr = (v: any) => String(v ?? '').trim();
+    const toStr = (v: any) => String(v ?? '').trim();
 
     // Champs produits (robustes même si l’input renvoie un number)
-  t.products = {
-  numeroLot: toStr(this.productForm.numeroLot),
-  nombreSacsDecharges: toStr(this.productForm.nombreSacsDecharges),
-  poidsBrut: toStr(this.productForm.poidsBrut),
-  poidsNet: toStr(this.productForm.poidsNet),
-};
-
+    t.products = {
+      numeroLot: toStr(this.productForm.numeroLot),
+      nombreSacsDecharges: toStr(this.productForm.nombreSacsDecharges),
+      poidsBrut: toStr(this.productForm.poidsBrut),
+      poidsNet: toStr(this.productForm.poidsNet),
+    };
 
     // Si tu avais déjà une logique métier après validation, garde-la.
     // (Ne supprime pas ce que tu avais : mets juste ces champs avant de sauvegarder.)
@@ -696,29 +709,27 @@ getHourForCurrentTab(t: StoredTruck): string {
   // STATISTIQUES
   // =========================================================
   get totalEnregistres() {
-    return this.trucksByPeriod.filter(t => t.statut === 'Enregistré').length;
+    return this.trucksByPeriod.filter((t) => t.statut === 'Enregistré').length;
   }
   get totalEnAttente() {
-     return this.trucksByPeriod.filter(t => t.statut === 'En attente').length;
+    return this.trucksByPeriod.filter((t) => t.statut === 'En attente').length;
   }
- get totalValides() {
-  // Validés = Validé mais pas encore accepté
-  return this.trucksByPeriod.filter(t => t.statut === 'Validé').length;
-}
+  get totalValides() {
+    // Validés = Validé mais pas encore accepté
+    return this.trucksByPeriod.filter((t) => t.statut === 'Validé').length;
+  }
 
   get totalAcceptes() {
-   return this.trucksByPeriod.filter(
-    t => t.advancedStatus === 'ACCEPTE_FINAL'
-  ).length;
+    return this.trucksByPeriod.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
   }
   get totalRefoules() {
-   return this.trucksByPeriod.filter(
-    (t: any) =>
-      t.statut === 'Refoulé' ||
-      (t.statut === 'Annulé' &&
-        (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
-         t.advancedStatus === 'REFUSE_RENVOYE'))
-  ).length;
+    return this.trucksByPeriod.filter(
+      (t: any) =>
+        t.statut === 'Refoulé' ||
+        (t.statut === 'Annulé' &&
+          (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+            t.advancedStatus === 'REFUSE_RENVOYE'))
+    ).length;
   }
 
   get historique() {
@@ -726,33 +737,30 @@ getHourForCurrentTab(t: StoredTruck): string {
   }
 
   get nbValidesByPeriod(): number {
-  return this.trucksByPeriod.filter(
-    t => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-  ).length;
-}
+    return this.trucksByPeriod.filter(
+      (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+    ).length;
+  }
 
-get nbEnregistresByPeriod(): number {
-  return this.trucksByPeriod.filter(t => t.statut === 'Enregistré').length;
-}
+  get nbEnregistresByPeriod(): number {
+    return this.trucksByPeriod.filter((t) => t.statut === 'Enregistré').length;
+  }
 
-get nbAttenteByPeriod(): number {
-  return this.trucksByPeriod.filter(t => t.statut === 'En attente').length;
-}
+  get nbAttenteByPeriod(): number {
+    return this.trucksByPeriod.filter((t) => t.statut === 'En attente').length;
+  }
 
-get nbRefoulesByPeriod(): number {
-  return this.trucksByPeriod.filter(
-    (t: any) =>
-      t.statut === 'Refoulé' ||
-      (t.statut === 'Annulé' &&
-        (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
-         t.advancedStatus === 'REFUSE_RENVOYE'))
-  ).length;
-}
+  get nbRefoulesByPeriod(): number {
+    return this.trucksByPeriod.filter(
+      (t: any) =>
+        t.statut === 'Refoulé' ||
+        (t.statut === 'Annulé' &&
+          (t.advancedStatus === 'REFUSE_EN_ATTENTE_GERANT' ||
+            t.advancedStatus === 'REFUSE_RENVOYE'))
+    ).length;
+  }
 
-get nbAcceptesByPeriod(): number {
-  return this.trucksByPeriod.filter(
-    t => t.advancedStatus === 'ACCEPTE_FINAL'
-  ).length;
-}
-
+  get nbAcceptesByPeriod(): number {
+    return this.trucksByPeriod.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
+  }
 }

@@ -102,8 +102,6 @@
                   <th>Transporteur</th>
                   <th>Date Arrivée Camion</th>
                   <th>Heure d'enrégistrement</th>
-                  <th>Heure de Validation</th>
-                  <th>Heure de rejet</th>
                   <th>Statut</th>
                   <th class="action-cell">Action</th>
                 </tr>
@@ -125,13 +123,11 @@
                     <td class="cell-muted">
                       {{ row.createdAt | date : 'dd/MM/yyyy' }}
                     </td>
+                    <!-- Heure d'enregistrement (USER) -->
                     <td class="cell-muted">
-                      {{ row.finDechargement !== '-' ? row.finDechargement : '-' }}
+                      {{ formatHeure(row.createdAt) }}
                     </td>
-                    <td class="cell-muted">
-                      {{ row.statut === 'Annulé' ? row.finDechargement : '-' }}
-                    </td>
-                    <td class="cell-muted"></td>
+
                     <td>
                       <span [ngClass]="getStatusCssClass(row.statut)">
                         {{ row.statut }}

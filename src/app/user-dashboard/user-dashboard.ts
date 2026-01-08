@@ -140,12 +140,12 @@ export class UserDashboard implements OnInit {
   toggleNotifications(): void {
     this.showNotifDropdown = !this.showNotifDropdown;
   }
-@HostListener('document:click')
-closeNotifDropdownOnOutsideClick(): void {
-  if (this.showNotifDropdown) {
-    this.showNotifDropdown = false;
+  @HostListener('document:click')
+  closeNotifDropdownOnOutsideClick(): void {
+    if (this.showNotifDropdown) {
+      this.showNotifDropdown = false;
+    }
   }
-}
 
   openNotification(n: any): void {
     // Marquer comme lu
@@ -161,6 +161,8 @@ closeNotifDropdownOnOutsideClick(): void {
     this.showNotifDropdown = false;
 
     // ✅ navigation Angular (pas window.location)
-    this.router.navigate(['/userdashboard/userentrepot', n.entrepotId]);
+    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+      this.router.navigate(['/userdashboard/userentrepot', n.entrepotId]);
+    });
   }
 }

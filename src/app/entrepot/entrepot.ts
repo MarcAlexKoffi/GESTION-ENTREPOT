@@ -137,6 +137,9 @@ export class Entrepot implements OnInit {
 
     localStorage.setItem(this.truckStorageKey, JSON.stringify(all));
   }
+  private refreshView(): void {
+    this.loadTrucks();
+  }
 
   // ================================================================
   // COMMENTAIRES ADMIN
@@ -204,9 +207,9 @@ export class Entrepot implements OnInit {
       return created.getTime() >= sevenDaysAgo;
     }
     if (this.selectedPeriod === '30days') {
-  const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
-  return created.getTime() >= thirtyDaysAgo;
-}
+      const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+      return created.getTime() >= thirtyDaysAgo;
+    }
     return true;
   }
 
@@ -267,43 +270,34 @@ export class Entrepot implements OnInit {
   }
 
   get filteredTrucks(): Truck[] {
-  const source = this.filteredTrucksBase;
+    const source = this.filteredTrucksBase;
 
-  switch (this.currentTab) {
-    case 'pending':
-      return source.filter(t => t.statut === 'En attente');
+    switch (this.currentTab) {
+      case 'pending':
+        return source.filter((t) => t.statut === 'En attente');
 
-    case 'validated':
-      return source.filter(
-        (t: any) =>
-          t.statut === 'Validé' &&
-          t.advancedStatus !== 'ACCEPTE_FINAL'
-      );
+      case 'validated':
+        return source.filter(
+          (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+        );
 
-    case 'accepted':
-      return source.filter(
-        (t: any) => t.advancedStatus === 'ACCEPTE_FINAL'
-      );
+      case 'accepted':
+        return source.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL');
 
-    case 'cancelled':
-      return source.filter(
-        (t: any) =>
-          t.statut === 'Annulé' &&
-          t.advancedStatus !== 'REFUSE_RENVOYE'
-      );
+      case 'cancelled':
+        return source.filter(
+          (t: any) => t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'
+        );
 
-    case 'renvoyes':
-      return source.filter(
-        (t: any) =>
-          t.statut === 'Annulé' &&
-          t.advancedStatus === 'REFUSE_RENVOYE'
-      );
+      case 'renvoyes':
+        return source.filter(
+          (t: any) => t.statut === 'Annulé' && t.advancedStatus === 'REFUSE_RENVOYE'
+        );
 
-    default:
-      return [];
+      default:
+        return [];
+    }
   }
-}
-
 
   get filteredTrucksBase(): Truck[] {
     const search = this.searchTerm.trim().toLowerCase();
@@ -319,20 +313,20 @@ export class Entrepot implements OnInit {
       return this.isInSelectedPeriod(t.createdAt);
     });
   }
-get selectedPeriodLabel(): string {
-  switch (this.selectedPeriod) {
-    case 'today':
-      return "Aujourd'hui";
-    case '7days':
-      return '7 derniers jours';
-    case '30days':
-      return '30 derniers jours';
-    case 'all':
-      return 'Toutes périodes';
-    default:
-      return 'Toutes périodes';
+  get selectedPeriodLabel(): string {
+    switch (this.selectedPeriod) {
+      case 'today':
+        return "Aujourd'hui";
+      case '7days':
+        return '7 derniers jours';
+      case '30days':
+        return '30 derniers jours';
+      case 'all':
+        return 'Toutes périodes';
+      default:
+        return 'Toutes périodes';
+    }
   }
-}
   // ================================================================
   // MODAL "VOIR PLUS"
   // ================================================================
@@ -377,8 +371,8 @@ get selectedPeriodLabel(): string {
     });
 
     this.saveComment(this.selectedTruck.id, this.adminComment);
-
     this.saveTrucks();
+    this.refreshView();
     this.closeDetailsModal();
   }
 
@@ -409,6 +403,7 @@ get selectedPeriodLabel(): string {
     this.saveComment(this.selectedTruck.id, this.adminComment);
 
     this.saveTrucks();
+    this.refreshView();
     this.closeDetailsModal();
   }
   // ================================================================
@@ -484,12 +479,9 @@ get selectedPeriodLabel(): string {
     ).length;
   }
 
- get nbAccepted(): number {
-  return this.filteredTrucksBase.filter(
-    (t: any) => t.advancedStatus === 'ACCEPTE_FINAL'
-  ).length;
-}
-
+  get nbAccepted(): number {
+    return this.filteredTrucksBase.filter((t: any) => t.advancedStatus === 'ACCEPTE_FINAL').length;
+  }
 
   get nbCancelled(): number {
     return this.filteredTrucksBase.filter(
@@ -515,15 +507,15 @@ get selectedPeriodLabel(): string {
   }
 
   togglePeriodDropdown(): void {
-  this.showPeriodDropdown = !this.showPeriodDropdown;
-}
+    this.showPeriodDropdown = !this.showPeriodDropdown;
+  }
 
-closePeriodDropdown(): void {
-  this.showPeriodDropdown = false;
-}
+  closePeriodDropdown(): void {
+    this.showPeriodDropdown = false;
+  }
 
-setPeriod(value: 'today' | '7days' | '30days' | 'all'): void {
-  this.selectedPeriod = value;
-  this.closePeriodDropdown();
-}
+  setPeriod(value: 'today' | '7days' | '30days' | 'all'): void {
+    this.selectedPeriod = value;
+    this.closePeriodDropdown();
+  }
 }

@@ -9,8 +9,6 @@ import { Router, RouterModule } from '@angular/router';
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
-
-  
   // ===============================================================
   // NOTIFICATIONS
   // ===============================================================
@@ -47,10 +45,7 @@ export class Dashboard {
     // Tous les camions "En attente" (analyses envoyées)
     // Tous les camions renvoyés vers l'admin (unreadForAdmin = true)
     this.notifications = trucks
-      .filter((t: any) =>
-        t.statut === 'En attente' ||
-        t.unreadForAdmin === true
-      )
+      .filter((t: any) => t.statut === 'En attente' || t.unreadForAdmin === true)
       .map((t: any) => {
         const wh = warehouses.find((w: any) => w.id === t.entrepotId);
         return {
@@ -71,19 +66,18 @@ export class Dashboard {
   // ===============================================================
   // OUVERTURE / FERMETURE DU DROPDOWN
   // ===============================================================
- toggleNotifications(event: MouseEvent) {
-  event.stopPropagation(); // empêche la fermeture immédiate
-  this.showNotifDropdown = !this.showNotifDropdown;
-}
-@HostListener('document:click')
-closeNotifOnOutsideClick(): void {
-  this.showNotifDropdown = false;
-}
-@HostListener('document:keydown.escape')
-closeNotifOnEscape(): void {
-  this.showNotifDropdown = false;
-}
-
+  toggleNotifications(event: MouseEvent) {
+    event.stopPropagation(); // empêche la fermeture immédiate
+    this.showNotifDropdown = !this.showNotifDropdown;
+  }
+  @HostListener('document:click')
+  closeNotifOnOutsideClick(): void {
+    this.showNotifDropdown = false;
+  }
+  @HostListener('document:keydown.escape')
+  closeNotifOnEscape(): void {
+    this.showNotifDropdown = false;
+  }
 
   // ===============================================================
   // QUAND L'ADMIN CLIQUE SUR UNE NOTIFICATION
@@ -107,6 +101,8 @@ closeNotifOnEscape(): void {
     this.loadNotifications();
 
     // Navigation vers l'entrepôt concerné
-    this.router.navigate(['/dashboard/entrepot', n.entrepotId]);
+    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+      this.router.navigate(['/dashboard/entrepot', n.entrepotId]);
+    });
   }
 }

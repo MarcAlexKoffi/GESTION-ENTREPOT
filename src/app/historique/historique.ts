@@ -282,4 +282,15 @@ private getTodayFileName(): string {
     }
   }
  
+  formatHeure(date?: string): string {
+  if (!date) {
+    return '-';
+  }
+
+  return new Date(date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 }
