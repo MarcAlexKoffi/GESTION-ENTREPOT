@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { TruckService, Truck } from '../services/truck.service';
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
 
 type UserRole = 'admin' | 'operator' | 'driver' | 'security';
 type UserStatus = 'Actif' | 'Inactif' | 'En attente';
@@ -24,7 +26,7 @@ interface StoredUser {
   templateUrl: './user-dashboard.html',
   styleUrl: './user-dashboard.scss',
 })
-export class UserDashboard implements OnInit {
+export class UserDashboard implements OnInit, OnDestroy {
   // session user
   currentUser: StoredUser | null = null;
   userName = '—';
@@ -43,11 +45,23 @@ export class UserDashboard implements OnInit {
     statut: string;
   }> = [];
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private truckService: TruckService,
+    private warehouseService: WarehouseService
+  ) {}
+
+  private pollingInterval: any;
 
   ngOnInit(): void {
     this.loadCurrentUserOrRedirect();
     this.loadNotifications();
+    // Polling toutes les 15 secondes
+    this.pollingInterval = setInterval(() => this.loadNotifications(), 15000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
   }
 
   // -----------------------------
@@ -108,33 +122,30 @@ export class UserDashboard implements OnInit {
   // Notifications
   // -----------------------------
   loadNotifications(): void {
-    const rawTrucks = localStorage.getItem('trucks');
-    const rawWarehouses = localStorage.getItem('warehouses');
+    if (!this.userEntrepotId) return;
 
-    const trucks = rawTrucks ? JSON.parse(rawTrucks) : [];
-    const warehouses = rawWarehouses ? JSON.parse(rawWarehouses) : [];
+    this.warehouseService.getWarehouses().subscribe({
+      next: (warehouses: StoredWarehouse[]) => {
+        this.truckService.getTrucks(this.userEntrepotId!).subscribe({
+          next: (trucks: Truck[]) => {
+            this.notifications = trucks
+              .filter((t: Truck) => t.unreadForGerant === true)
+              .map((t: Truck) => {
+                const wh = warehouses.find((w: StoredWarehouse) => w.id === t.entrepotId);
+                return {
+                  id: t.id,
+                  immatriculation: t.immatriculation,
+                  entrepotId: t.entrepotId,
+                  entrepotName: wh ? wh.name : 'Inconnu',
+                  statut: t.statut,
+                };
+              });
 
-    // ✅ filtre par entrepôt assigné (si non admin)
-    const allowedEntrepotId = this.userEntrepotId;
-
-    this.notifications = trucks
-      .filter((t: any) => t.unreadForGerant === true)
-      .filter((t: any) => {
-        if (allowedEntrepotId === null) return true; // admin
-        return t.entrepotId === allowedEntrepotId;
-      })
-      .map((t: any) => {
-        const wh = warehouses.find((w: any) => w.id === t.entrepotId);
-        return {
-          id: t.id,
-          immatriculation: t.immatriculation,
-          entrepotId: t.entrepotId,
-          entrepotName: wh ? wh.name : 'Inconnu',
-          statut: t.statut,
-        };
-      });
-
-    this.notifCount = this.notifications.length;
+            this.notifCount = this.notifications.length;
+          },
+        });
+      },
+    });
   }
 
   toggleNotifications(): void {
@@ -148,21 +159,17 @@ export class UserDashboard implements OnInit {
   }
 
   openNotification(n: any): void {
-    // Marquer comme lu
-    const raw = localStorage.getItem('trucks');
-    const all = raw ? JSON.parse(raw) : [];
-
-    const idx = all.findIndex((t: any) => t.id === n.id);
-    if (idx !== -1) {
-      all[idx].unreadForGerant = false;
-      localStorage.setItem('trucks', JSON.stringify(all));
-    }
-
     this.showNotifDropdown = false;
 
-    // ✅ navigation Angular (pas window.location)
-    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
-      this.router.navigate(['/userdashboard/userentrepot', n.entrepotId]);
+    // Marquer comme lu via l'API
+    this.truckService.updateTruck(n.id, { unreadForGerant: false }).subscribe({
+      next: () => {
+        this.loadNotifications();
+        // navigation Angular
+        this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+          this.router.navigate(['/userdashboard/userentrepot', n.entrepotId]);
+        });
+      },
     });
   }
 }

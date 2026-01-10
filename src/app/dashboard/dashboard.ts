@@ -1,14 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { TruckService, Truck } from '../services/truck.service';
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
 
 @Component({
   selector: 'app-dashboard',
+  standalone: true,
   imports: [RouterModule, CommonModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
-export class Dashboard {
+export class Dashboard implements OnInit, OnDestroy {
   // ===============================================================
   // NOTIFICATIONS
   // ===============================================================
@@ -25,42 +28,56 @@ export class Dashboard {
     heureArrivee: string;
   }> = [];
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private truckService: TruckService,
+    private warehouseService: WarehouseService
+  ) {}
+
+  private pollingInterval: any;
 
   ngOnInit(): void {
     this.loadNotifications();
+    // Polling toutes les 15 secondes
+    this.pollingInterval = setInterval(() => this.loadNotifications(), 15000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
   }
 
   // ===============================================================
   // CHARGEMENT DES NOTIFICATIONS
   // ===============================================================
   loadNotifications() {
-    const rawTrucks = localStorage.getItem('trucks');
-    const rawWarehouses = localStorage.getItem('warehouses');
+    this.warehouseService.getWarehouses().subscribe({
+      next: (warehouses: StoredWarehouse[]) => {
+        this.truckService.getTrucks().subscribe({
+          next: (trucks: Truck[]) => {
+            // On charge :
+            // Tous les camions "En attente" (analyses envoyées)
+            // Tous les camions renvoyés vers l'admin (unreadForAdmin = true)
+            this.notifications = trucks
+              .filter((t: Truck) => t.statut === 'En attente' || t.unreadForAdmin === true)
+              .map((t: Truck) => {
+                const wh = warehouses.find((w: StoredWarehouse) => w.id === t.entrepotId);
+                return {
+                  id: t.id,
+                  immatriculation: t.immatriculation,
+                  entrepotId: t.entrepotId,
+                  entrepotName: wh ? wh.name : 'Entrepôt inconnu',
+                  statut: t.statut,
+                  advancedStatus: t.advancedStatus,
+                  heureArrivee: t.heureArrivee,
+                };
+              });
 
-    let trucks = rawTrucks ? JSON.parse(rawTrucks) : [];
-    let warehouses = rawWarehouses ? JSON.parse(rawWarehouses) : [];
-
-    // On charge :
-    // Tous les camions "En attente" (analyses envoyées)
-    // Tous les camions renvoyés vers l'admin (unreadForAdmin = true)
-    this.notifications = trucks
-      .filter((t: any) => t.statut === 'En attente' || t.unreadForAdmin === true)
-      .map((t: any) => {
-        const wh = warehouses.find((w: any) => w.id === t.entrepotId);
-        return {
-          id: t.id,
-          immatriculation: t.immatriculation,
-          entrepotId: t.entrepotId,
-          entrepotName: wh ? wh.name : 'Entrepôt inconnu',
-          statut: t.statut,
-          advancedStatus: t.advancedStatus,
-          heureArrivee: t.heureArrivee,
-        };
-      });
-
-    // Nombre affiché sur le badge
-    this.notifCount = this.notifications.length;
+            // Nombre affiché sur le badge
+            this.notifCount = this.notifications.length;
+          },
+        });
+      },
+    });
   }
 
   // ===============================================================
@@ -70,10 +87,12 @@ export class Dashboard {
     event.stopPropagation(); // empêche la fermeture immédiate
     this.showNotifDropdown = !this.showNotifDropdown;
   }
+
   @HostListener('document:click')
   closeNotifOnOutsideClick(): void {
     this.showNotifDropdown = false;
   }
+
   @HostListener('document:keydown.escape')
   closeNotifOnEscape(): void {
     this.showNotifDropdown = false;
@@ -86,23 +105,17 @@ export class Dashboard {
     // On ferme le dropdown
     this.showNotifDropdown = false;
 
-    // On lit les camions stockés
-    const raw = localStorage.getItem('trucks');
-    let all = raw ? JSON.parse(raw) : [];
+    // On marque cette notification comme lue via l'API
+    this.truckService.updateTruck(n.id, { unreadForAdmin: false }).subscribe({
+      next: () => {
+        // Recharger les notifications (mise à jour du badge)
+        this.loadNotifications();
 
-    // On marque cette notification comme lue
-    const idx = all.findIndex((t: any) => t.id === n.id);
-    if (idx !== -1) {
-      all[idx].unreadForAdmin = false;
-      localStorage.setItem('trucks', JSON.stringify(all));
-    }
-
-    // Recharger les notifications (mise à jour du badge)
-    this.loadNotifications();
-
-    // Navigation vers l'entrepôt concerné
-    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
-      this.router.navigate(['/dashboard/entrepot', n.entrepotId]);
+        // Navigation vers l'entrepôt concerné
+        this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+          this.router.navigate(['/dashboard/entrepot', n.entrepotId]);
+        });
+      },
     });
   }
 }

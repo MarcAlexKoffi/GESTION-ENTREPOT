@@ -46,12 +46,24 @@
           <button class="" type="button" (click)="onDeleteWarehouse(card)">Supprimer</button>
         </div>
       </div>
-      <div class="warehouse-image" style="background-image: url('{{ card.imageUrl }}');"></div>
+      <div
+        class="warehouse-image"
+        [style.background-image]="
+          'url(' + (card.imageUrl || 'assets/placeholder-warehouse.png') + ')'
+        "
+      ></div>
+
       <div>
-        <p class="warehouse-name">{{ card.name }}</p>
-        <p class="warehouse-location">
-          {{ card.location }}
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start">
+          <div>
+            <p class="warehouse-name">{{ card.name }}</p>
+            <p class="warehouse-location">{{ card.location }}</p>
+          </div>
+          <div *ngIf="card.unreadCount > 0" class="notification-badge" title="Nouvelles actions">
+            {{ card.unreadCount }}
+          </div>
+        </div>
+
         <div class="warehouse-stats">
           <p>
             En attente: <span>{{ card.pending }}</span>
@@ -159,52 +171,26 @@
 
         <!-- Image (URL) -->
         <div class="warehouse-field">
-          <label class="warehouse-label" for="wh-image"> Image de couverture (URL d’image) </label>
+          <label class="warehouse-label"> Image de couverture </label>
+
           <input
-            id="wh-image"
-            type="text"
+            type="file"
+            accept="image/*"
             class="warehouse-input"
-            placeholder="Collez ici un lien vers une image"
-            [(ngModel)]="newWarehouse.imageUrl"
+            (change)="onImageSelected($event)"
           />
-          <p class="warehouse-help">
-            Vous pouvez utiliser une image hébergée (par exemple un lien d’illustration de vos
-            entrepôts).
-          </p>
+
+          <p class="warehouse-help">Formats acceptés : JPG, PNG.</p>
+
+          <!-- PREVIEW IMAGE -->
+          <div
+            *ngIf="imagePreview"
+            class="warehouse-image-preview"
+            [style.backgroundImage]="'url(' + imagePreview + ')'"
+          ></div>
         </div>
 
         <!-- Statistiques de départ (optionnel) -->
-        <div class="warehouse-modal__grid">
-          <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-pending"> En attente (facultatif) </label>
-            <input
-              id="wh-pending"
-              type="number"
-              class="warehouse-input"
-              [(ngModel)]="newWarehouse.pending"
-            />
-          </div>
-
-          <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-active"> En cours (facultatif) </label>
-            <input
-              id="wh-active"
-              type="number"
-              class="warehouse-input"
-              [(ngModel)]="newWarehouse.active"
-            />
-          </div>
-
-          <div class="warehouse-field">
-            <label class="warehouse-label" for="wh-discharged"> Déchargés (facultatif) </label>
-            <input
-              id="wh-discharged"
-              type="number"
-              class="warehouse-input"
-              [(ngModel)]="newWarehouse.discharged"
-            />
-          </div>
-        </div>
       </div>
 
       <!-- Pied de la modale -->
@@ -217,8 +203,15 @@
           Annuler
         </button>
 
-        <button class="warehouse-button warehouse-button--primary" (click)="saveWarehouse()">
-          {{ editingWarehouseId ? 'Enregistrer les modifications' : 'Créer l’entrepôt' }}
+        <button
+          class="warehouse-button warehouse-button--primary"
+          (click)="saveWarehouse()"
+          [disabled]="isLoading"
+        >
+          <span *ngIf="isLoading">Enregistrement...</span>
+          <span *ngIf="!isLoading">
+            {{ editingWarehouseId ? 'Enregistrer les modifications' : 'Créer l’entrepôt' }}
+          </span>
         </button>
       </div>
     </div>

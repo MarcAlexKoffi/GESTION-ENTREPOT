@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
+import { TruckService } from '../services/truck.service';
 
 interface CardInfo {
   id: number;
@@ -11,6 +13,7 @@ interface CardInfo {
   pending: number;
   active: number;
   discharged: number;
+  unreadCount: number;
 }
 
 // Ce modèle correspond aux camions enregistrés dans localStorage ("trucks")
@@ -28,24 +31,29 @@ interface StoredTruck {
   styleUrl: './dashboard-main.scss',
 })
 export class DashboardMain implements OnInit {
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.selectedImageFile = file;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.imagePreview = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
   // Cartes d'entrepôts
-  cards: Array<CardInfo> = [
-    {
-      id: 1,
-      imageUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuAl6UTGFPudQ7Xw_KL-FLsUY4fF6xF9auoEoHQi8bYObkkQ1lp94ptnTdgDRbV1rIzWagetFC2uQ8PWUn0Mz6nUn-Y3VcsRNC79MSDmqe4uDzjCp7HPyd13Ymk1mMekEowDgJAAplDxHIVvALpovHo3VOkXIsJGMqJvwklhNj8_yMBV2OIKGozLkeDEx4xy7Jj2OExxyeRXLMYLckZ3ghjfCblPH1sflv8i_cFzNKXv2y8Gzokpi-kzB-8EqApLJhw3CETMEoHmq1mc',
-      name: 'Entrepôt Lyon Sud',
-      location: 'Corbas, Auvergne-Rhône-Alpes',
-      pending: 8,
-      active: 3,
-      discharged: 32,
-    },
-  ];
+  cards: Array<CardInfo> = [];
 
   // Modale création / édition
   showWarehouseModal = false;
   mode: 'create' | 'edit' = 'create';
   editingWarehouseId: number | null = null;
+  selectedImageFile: File | null = null;
+  imagePreview: string | null = null;
 
   // Menu d'actions ⋮
   actionsMenuWarehouseId: number | null = null;
@@ -60,23 +68,60 @@ export class DashboardMain implements OnInit {
     discharged: 0,
   };
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private warehouseService: WarehouseService,
+    private truckService: TruckService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // INITIALISATION
   // ---------------------------------------------------------------------------
   ngOnInit(): void {
-    const saved = localStorage.getItem('warehouses');
-    if (saved) {
-      try {
-        this.cards = JSON.parse(saved) as CardInfo[];
-      } catch (e) {
-        console.error('Erreur de lecture du localStorage (warehouses)', e);
-      }
-    }
+    this.loadWarehouses();
+  }
 
-    // Recalcule les stats à partir des camions enregistrés
-    this.updateWarehouseStatsFromTrucks();
+  loadWarehouses(): void {
+    // 1. Charger les entrepôts
+    this.warehouseService.getWarehouses().subscribe({
+      next: (warehouses: StoredWarehouse[]) => {
+        // 2. Charger TOUS les camions pour calculer les stats
+        this.truckService.getTrucks().subscribe({
+          next: (allTrucks) => {
+            this.cards = warehouses.map((w) => {
+              let img = w.imageUrl;
+              if (img && !img.startsWith('http') && !img.startsWith('data:')) {
+                img = `http://localhost:3000${img}`;
+              }
+
+              // Filtrer les camions pour cet entrepôt
+              const trucksForWarehouse = allTrucks.filter((t) => t.entrepotId === w.id);
+              const pending = trucksForWarehouse.filter((t) => t.statut === 'En attente').length;
+              const active = trucksForWarehouse.filter(
+                (t) => t.statut === 'En cours de déchargement'
+              ).length;
+              const discharged = trucksForWarehouse.filter((t) => t.statut === 'Déchargé').length;
+              const unreadCount = trucksForWarehouse.filter((t) => t.unreadForAdmin).length;
+
+              return {
+                id: w.id,
+                name: w.name,
+                location: w.location,
+                imageUrl: img || 'https://via.placeholder.com/800x400?text=Entrepot',
+                pending,
+                active,
+                discharged,
+                unreadCount,
+              };
+            });
+          },
+          error: (err) => console.error('Erreur chargement camions', err),
+        });
+      },
+      error: (err) => {
+        console.error('Erreur chargement entrepôts', err);
+      },
+    });
   }
   // Ferme le menu ⋮ quand on clique ailleurs sur la page
   @HostListener('document:click')
@@ -95,6 +140,7 @@ export class DashboardMain implements OnInit {
   // ---------------------------------------------------------------------------
   // MODALE : OUVERTURE / FERMETURE (MODE CRÉATION PAR DÉFAUT)
   // ---------------------------------------------------------------------------
+
   openWarehouseModal(): void {
     this.mode = 'create';
     this.editingWarehouseId = null;
@@ -109,6 +155,15 @@ export class DashboardMain implements OnInit {
     };
 
     this.showWarehouseModal = true;
+    this.selectedImageFile = null;
+    this.imagePreview = null;
+
+    // Reset de l'input file si présent dans le DOM (astuce simple via ID)
+    // Pas strictement obligatoire si on recrée le composant, mais ici la modale est toujours là.
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
 
   closeWarehouseModal(): void {
@@ -149,6 +204,8 @@ export class DashboardMain implements OnInit {
     };
 
     this.showWarehouseModal = true;
+    this.imagePreview = card.imageUrl;
+    this.selectedImageFile = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -157,141 +214,69 @@ export class DashboardMain implements OnInit {
   onDeleteWarehouse(card: CardInfo): void {
     this.actionsMenuWarehouseId = null;
 
-    const confirmation = confirm(
-      `Voulez-vous vraiment supprimer l'entrepôt "${card.name}" ? ` +
-        `Tous les camions liés à cet entrepôt seront également supprimés.`
-    );
+    const confirmation = confirm(`Voulez-vous vraiment supprimer l'entrepôt "${card.name}" ? `);
     if (!confirmation) {
       return;
     }
 
-    // 1) Supprimer l'entrepôt dans localStorage["warehouses"]
-    const rawWarehouses = localStorage.getItem('warehouses');
-    let warehouses: CardInfo[] = [];
+    // Appel API pour suppression
+    this.warehouseService.delete(card.id).subscribe({
+      next: () => {
+        // 1) Mettre à jour l'affichage
+        this.cards = this.cards.filter((w) => w.id !== card.id);
 
-    if (rawWarehouses) {
-      try {
-        warehouses = JSON.parse(rawWarehouses) as CardInfo[];
-      } catch (e) {
-        console.error('Erreur de lecture du localStorage (warehouses)', e);
-      }
-    }
-
-    const updatedWarehouses = warehouses.filter((w) => w.id !== card.id);
-    localStorage.setItem('warehouses', JSON.stringify(updatedWarehouses));
-
-    // Mettre à jour les cartes affichées
-    this.cards = this.cards.filter((w) => w.id !== card.id);
-
-    // 2) Supprimer les camions liés dans localStorage["trucks"]
-    const rawTrucks = localStorage.getItem('trucks');
-    if (rawTrucks) {
-      try {
-        const allTrucks = JSON.parse(rawTrucks) as StoredTruck[];
-        const filteredTrucks = allTrucks.filter((t) => t.entrepotId !== card.id);
-        localStorage.setItem('trucks', JSON.stringify(filteredTrucks));
-      } catch (e) {
-        console.error('Erreur de lecture du localStorage (trucks)', e);
-      }
-    }
-
-    // 3) Recalcul des stats
-    this.updateWarehouseStatsFromTrucks();
+        // 2) Nettoyage localStorage inutile car Cascade coté DB
+      },
+      error: (err) => {
+        console.error('Erreur suppression entrepôt', err);
+        alert('Erreur lors de la suppression de l’entrepôt');
+      },
+    });
   }
 
   // ---------------------------------------------------------------------------
   // SAUVEGARDE (CRÉATION OU MODIFICATION)
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // SAUVEGARDE (CRÉATION OU MODIFICATION)
+  // ---------------------------------------------------------------------------
+  isLoading = false;
+
   saveWarehouse(): void {
     if (!this.newWarehouse.name || !this.newWarehouse.location) {
-      alert('Merci de saisir au moins le nom et la localisation de l’entrepôt.');
+      alert('Merci de saisir le nom et la localisation.');
       return;
     }
 
-    // --- CAS 1 : CRÉATION ---
-    if (this.mode === 'create') {
-      const nextId = this.cards.length > 0 ? this.cards[this.cards.length - 1].id + 1 : 1;
+    this.isLoading = true;
 
-      const warehouse: CardInfo = {
-        id: nextId,
-        imageUrl:
-          (this.newWarehouse.imageUrl as string) ||
-          'https://via.placeholder.com/800x400?text=Nouvel+entrepot',
-        name: this.newWarehouse.name as string,
-        location: this.newWarehouse.location as string,
-        pending: Number(this.newWarehouse.pending ?? 0),
-        active: Number(this.newWarehouse.active ?? 0),
-        discharged: Number(this.newWarehouse.discharged ?? 0),
-      };
-
-      this.cards.push(warehouse);
-    }
-
-    // --- CAS 2 : MODIFICATION ---
-    else if (this.mode === 'edit' && this.editingWarehouseId !== null) {
-      const index = this.cards.findIndex((c) => c.id === this.editingWarehouseId);
-      if (index !== -1) {
-        this.cards[index] = {
-          ...this.cards[index],
-          name: this.newWarehouse.name as string,
-          location: this.newWarehouse.location as string,
-          imageUrl: (this.newWarehouse.imageUrl as string) || this.cards[index].imageUrl,
-          pending: Number(this.newWarehouse.pending ?? this.cards[index].pending),
-          active: Number(this.newWarehouse.active ?? this.cards[index].active),
-          discharged: Number(this.newWarehouse.discharged ?? this.cards[index].discharged),
-        };
-      }
-    }
-
-    // Sauvegarde dans le navigateur
-    localStorage.setItem('warehouses', JSON.stringify(this.cards));
-
-    // Reset du formulaire
-    this.newWarehouse = {
-      name: '',
-      location: '',
-      imageUrl: '',
-      pending: 0,
-      active: 0,
-      discharged: 0,
+    const payload = {
+      name: this.newWarehouse.name as string,
+      location: this.newWarehouse.location as string,
+      imageFile: this.selectedImageFile || undefined,
     };
 
-    // Fermer la modale et rafraîchir les stats
-    this.closeWarehouseModal();
-    this.updateWarehouseStatsFromTrucks();
-  }
+    const request$ =
+      this.mode === 'create'
+        ? this.warehouseService.create(payload)
+        : this.warehouseService.update(this.editingWarehouseId!, payload);
 
-  // ---------------------------------------------------------------------------
-  // RECALCUL DES STATS DES ENTREPÔTS À PARTIR DES CAMIONS ("trucks")
-  // ---------------------------------------------------------------------------
-  private updateWarehouseStatsFromTrucks(): void {
-    const trucksSaved = localStorage.getItem('trucks');
-    if (!trucksSaved) {
-      return;
-    }
-
-    let allTrucks: StoredTruck[] = [];
-    try {
-      allTrucks = JSON.parse(trucksSaved) as StoredTruck[];
-    } catch (e) {
-      console.error('Erreur de lecture du localStorage (trucks)', e);
-      return;
-    }
-
-    this.cards = this.cards.map((card) => {
-      const trucksForWarehouse = allTrucks.filter((t) => t.entrepotId === card.id);
-      const pending = trucksForWarehouse.filter((t) => t.statut === 'En attente').length;
-      const active = trucksForWarehouse.filter(
-        (t) => t.statut === 'En cours de déchargement'
-      ).length;
-      const discharged = trucksForWarehouse.filter((t) => t.statut === 'Déchargé').length;
-
-      return {
-        ...card,
-        pending,
-        active,
-        discharged,
-      };
+    request$.subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.closeWarehouseModal();
+        this.loadWarehouses();
+        // Feedback visuel simple (pourrait être un toast)
+        // alert(this.mode === 'create' ? 'Entrepôt créé avec succès' : 'Modifications enregistrées');
+      },
+      error: (err) => {
+        this.isLoading = false;
+        console.error('Erreur saveWarehouse', err);
+        const errorMsg = err.error?.message || 'Une erreur est survenue.';
+        alert(errorMsg);
+      },
     });
+
+    // Reset du formulaire (sera fait à l'ouverture ou ici si besoin)
   }
 }

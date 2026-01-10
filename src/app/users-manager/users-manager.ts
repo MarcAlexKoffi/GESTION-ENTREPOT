@@ -1,28 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-type UserRole = 'admin' | 'operator' | 'driver' | 'security';
-type UserStatus = 'Actif' | 'Inactif' | 'En attente';
-
-interface StoredWarehouse {
-  id: number;
-  name: string;
-  location: string;
-  imageUrl?: string;
-}
-
-interface StoredUser {
-  id: number;
-  nom: string;
-  email: string;
-  username: string;
-  password: string;
-  role: UserRole;
-  entrepotId: number | null; // certains rôles peuvent ne pas être liés à un entrepôt
-  status: UserStatus;
-  createdAt: string;
-}
+import { UserService, User } from '../services/user.service';
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
 
 @Component({
   selector: 'app-users-manager',
@@ -32,108 +12,58 @@ interface StoredUser {
   styleUrl: './users-manager.scss',
 })
 export class UsersManager implements OnInit {
-  // --- storage keys
-  private readonly usersKey = 'users';
-  private readonly warehousesKey = 'warehouses';
-
   // --- data
-  users: StoredUser[] = [];
+  users: User[] = [];
   warehouses: StoredWarehouse[] = [];
 
   // --- filters
   searchTerm = '';
-  selectedRole: '' | UserRole = '';
+  selectedRole: '' | 'admin' | 'operator' = '';
   selectedWarehouseId: '' | number = '';
 
   // --- modal create/edit
   showUserModal = false;
   isEditMode = false;
 
-  formUser: {
-    id?: number;
-    nom: string;
-    email: string;
-    username: string;
-    password: string;
-    role: UserRole;
-    entrepotId: number | null;
-    status: UserStatus;
-  } = this.getEmptyFormUser();
+  formUser: Partial<User> = this.getEmptyFormUser();
 
   // --- UI message simple
   toastMessage: string | null = null;
+  isLoading = false;
+
+  constructor(private userService: UserService, private warehouseService: WarehouseService) {}
 
   ngOnInit(): void {
     this.loadWarehouses();
-    this.seedAdminIfEmpty();
     this.loadUsers();
   }
 
   // ---------------------------
-  // Chargement / sauvegarde
+  // Chargement
   // ---------------------------
   private loadWarehouses(): void {
-    const raw = localStorage.getItem(this.warehousesKey);
-    if (!raw) {
-      this.warehouses = [];
-      return;
-    }
-    try {
-      this.warehouses = JSON.parse(raw) as StoredWarehouse[];
-    } catch {
-      this.warehouses = [];
-    }
+    this.warehouseService.getWarehouses().subscribe({
+      next: (data) => (this.warehouses = data),
+      error: (err) => console.error('Erreur chargement entrepôts', err),
+    });
   }
 
   private loadUsers(): void {
-    const raw = localStorage.getItem(this.usersKey);
-    if (!raw) {
-      this.users = [];
-      return;
-    }
-    try {
-      this.users = JSON.parse(raw) as StoredUser[];
-    } catch {
-      this.users = [];
-    }
-    // tri: plus récent en premier
-    this.users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-
-  private saveUsers(): void {
-    localStorage.setItem(this.usersKey, JSON.stringify(this.users));
-  }
-
-  // Crée un admin par défaut si aucun user n'existe (pratique pour démarrer)
-  private seedAdminIfEmpty(): void {
-    const raw = localStorage.getItem(this.usersKey);
-    if (raw) return;
-
-    const now = new Date().toISOString();
-    const defaultAdmin: StoredUser = {
-      id: Date.now(),
-      nom: 'Administrateur',
-      email: 'admin@local',
-      username: 'admin',
-      password: 'admin123',
-      role: 'admin',
-      entrepotId: null,
-      status: 'Actif',
-      createdAt: now,
-    };
-
-    localStorage.setItem(this.usersKey, JSON.stringify([defaultAdmin]));
+    this.userService.getUsers().subscribe({
+      next: (data) => (this.users = data),
+      error: (err) => console.error('Erreur chargement utilisateurs', err),
+    });
   }
 
   // ---------------------------
   // Helpers affichage
   // ---------------------------
-  get filteredUsers(): StoredUser[] {
+  get filteredUsers(): User[] {
     const search = this.searchTerm.trim().toLowerCase();
 
     return this.users.filter((u) => {
       if (search) {
-        const haystack = `${u.nom} ${u.email} ${u.username}`.toLowerCase();
+        const haystack = `${u.nom} ${u.username}`.toLowerCase();
         if (!haystack.includes(search)) return false;
       }
 
@@ -152,7 +82,13 @@ export class UsersManager implements OnInit {
 
   getWarehouseName(entrepotId: number | null): string {
     if (entrepotId === null) return '—';
-    return this.warehouses.find((w) => w.id === entrepotId)?.name ?? '—';
+    // On essaie de trouver dans la liste chargée, sinon on prend le nom joint par l'API
+    const found = this.warehouses.find((w) => w.id === entrepotId);
+    if (found) return found.name;
+
+    // Fallback: chercher dans le user si l'API renvoie le nom (jointure)
+    const user = this.users.find((u) => u.entrepotId === entrepotId);
+    return user?.entrepotName ?? '—';
   }
 
   getInitials(nom: string): string {
@@ -162,37 +98,29 @@ export class UsersManager implements OnInit {
     return (first + second).toUpperCase();
   }
 
-  roleLabel(role: UserRole): string {
+  roleLabel(role: string): string {
     switch (role) {
       case 'admin':
         return 'Administrateur';
       case 'operator':
         return 'Opérateur';
-      case 'driver':
-        return 'Chauffeur';
-      case 'security':
-        return 'Sécurité';
       default:
         return role;
     }
   }
 
-  roleIcon(role: UserRole): string {
+  roleIcon(role: string): string {
     switch (role) {
       case 'admin':
         return 'shield_person';
       case 'operator':
         return 'desktop_windows';
-      case 'driver':
-        return 'local_shipping';
-      case 'security':
-        return 'security';
       default:
         return 'person';
     }
   }
 
-  statusClass(status: UserStatus): string {
+  statusClass(status: string): string {
     switch (status) {
       case 'Actif':
         return 'active';
@@ -218,18 +146,9 @@ export class UsersManager implements OnInit {
     this.showUserModal = true;
   }
 
-  openEditUser(user: StoredUser): void {
+  openEditUser(user: User): void {
     this.isEditMode = true;
-    this.formUser = {
-      id: user.id,
-      nom: user.nom,
-      email: user.email,
-      username: user.username,
-      password: user.password,
-      role: user.role,
-      entrepotId: user.entrepotId,
-      status: user.status,
-    };
+    this.formUser = { ...user, password: '' }; // On ne préremplit pas le mot de passe
     this.showUserModal = true;
   }
 
@@ -238,88 +157,56 @@ export class UsersManager implements OnInit {
   }
 
   saveUserFromModal(): void {
-    // validations simples
-    // --- Entrepôt obligatoire pour tous sauf admin
-if (this.formUser.role !== 'admin') {
-  if (this.warehouses.length === 0) {
-    this.showToast('Créez d’abord un entrepôt avant d’ajouter des utilisateurs.');
-    return;
-  }
-
-  if (this.formUser.entrepotId === null) {
-    this.showToast('Veuillez affecter un entrepôt à cet utilisateur.');
-    return;
-  }
-}
-
-    // username unique
-    const usernameLower = this.formUser.username.trim().toLowerCase();
-    const conflict = this.users.find(
-      (u) => u.username.toLowerCase() === usernameLower && u.id !== this.formUser.id
-    );
-    if (conflict) {
-      this.showToast('Identifiant déjà utilisé. Choisissez-en un autre.');
+    if (!this.formUser.nom || !this.formUser.username || !this.formUser.role) {
+      this.showToast('Veuillez remplir les champs obligatoires.');
       return;
     }
 
-    // email unique (si renseigné)
-    const emailLower = this.formUser.email.trim().toLowerCase();
-    if (emailLower) {
-      const emailConflict = this.users.find(
-        (u) => u.email.toLowerCase() === emailLower && u.id !== this.formUser.id
-      );
-      if (emailConflict) {
-        this.showToast('Email déjà utilisé. Choisissez-en un autre.');
+    // Role validation
+    if (this.formUser.role === 'operator' && !this.formUser.entrepotId) {
+      // Check if warehouses exist
+      if (this.warehouses.length === 0) {
+        this.showToast("Aucun entrepôt disponible. Créez d'abord un entrepôt.");
         return;
       }
+      this.showToast('Un opérateur doit être lié à un entrepôt.');
+      return;
     }
 
-    // si role admin, entrepotId peut être null
-    if (this.formUser.role !== 'admin') {
-      // pour les autres rôles, on conseille un entrepôt si dispo
-      if (this.warehouses.length > 0 && this.formUser.entrepotId === null) {
-        this.formUser.entrepotId = this.warehouses[0].id;
-      }
+    // Si admin, entrepotId null de force
+    if (this.formUser.role === 'admin') {
+      this.formUser.entrepotId = null;
     }
+
+    this.isLoading = true;
+    const observer = {
+      next: () => {
+        this.isLoading = false;
+        this.showToast(this.isEditMode ? 'Utilisateur mis à jour.' : 'Utilisateur créé.');
+        this.closeUserModal();
+        this.loadUsers();
+      },
+      error: (err: any) => {
+        this.isLoading = false;
+        console.error(err);
+        const msg = err.error?.message || 'Une erreur est survenue';
+        this.showToast(msg);
+      },
+    };
 
     if (this.isEditMode && this.formUser.id) {
-      const idx = this.users.findIndex((u) => u.id === this.formUser.id);
-      if (idx >= 0) {
-        this.users[idx] = {
-          ...this.users[idx],
-          nom: this.formUser.nom.trim(),
-          email: this.formUser.email.trim(),
-          username: this.formUser.username.trim(),
-          password: this.formUser.password,
-          role: this.formUser.role,
-          entrepotId: this.formUser.entrepotId,
-          status: this.formUser.status,
-        };
-        this.saveUsers();
-        this.showToast('Utilisateur mis à jour.');
-      }
+      this.userService.updateUser(this.formUser.id, this.formUser).subscribe(observer);
     } else {
-      const now = new Date().toISOString();
-      const newUser: StoredUser = {
-        id: Date.now(),
-        nom: this.formUser.nom.trim(),
-        email: this.formUser.email.trim(),
-        username: this.formUser.username.trim(),
-        password: this.formUser.password,
-        role: this.formUser.role,
-        entrepotId: this.formUser.entrepotId,
-        status: this.formUser.status,
-        createdAt: now,
-      };
-      this.users.unshift(newUser);
-      this.saveUsers();
-      this.showToast('Utilisateur créé.');
+      if (!this.formUser.password) {
+        this.isLoading = false;
+        this.showToast('Mot de passe requis pour la création.');
+        return;
+      }
+      this.userService.createUser(this.formUser as User).subscribe(observer);
     }
-
-    this.closeUserModal();
   }
 
-  deleteUser(user: StoredUser): void {
+  deleteUser(user: User): void {
     // empêcher de supprimer le dernier admin
     if (user.role === 'admin') {
       const admins = this.users.filter((u) => u.role === 'admin');
@@ -332,31 +219,43 @@ if (this.formUser.role !== 'admin') {
     const ok = confirm(`Supprimer l'utilisateur "${user.nom}" ?`);
     if (!ok) return;
 
-    this.users = this.users.filter((u) => u.id !== user.id);
-    this.saveUsers();
-    this.showToast('Utilisateur supprimé.');
+    this.userService.deleteUser(user.id!).subscribe({
+      next: () => {
+        this.showToast('Utilisateur supprimé.');
+        this.loadUsers();
+      },
+      error: (err) => {
+        this.showToast('Erreur suppression.');
+        console.error(err);
+      },
+    });
   }
 
   // modification rapide de l'entrepôt depuis le select dans le tableau
-  updateUserWarehouse(user: StoredUser, entrepotIdValue: string): void {
+  updateUserWarehouse(user: User, entrepotIdValue: string | number | null): void {
     const entrepotId = entrepotIdValue ? Number(entrepotIdValue) : null;
-    user.entrepotId = entrepotId;
-    this.saveUsers();
-    this.showToast('Entrepôt affecté.');
+
+    // Si on veut mettre à jour juste l'entrepôt
+    this.userService.updateUser(user.id!, { entrepotId }).subscribe({
+      next: () => {
+        user.entrepotId = entrepotId;
+        this.showToast('Entrepôt affecté.');
+      },
+      error: (err) => this.showToast('Erreur mise à jour.'),
+    });
   }
 
   // ---------------------------
   // Private helpers
   // ---------------------------
-  private getEmptyFormUser() {
+  private getEmptyFormUser(): Partial<User> {
     return {
       nom: '',
-      email: '',
       username: '',
       password: '',
-      role: 'operator' as UserRole,
-      entrepotId: null as number | null,
-      status: 'Actif' as UserStatus,
+      role: 'operator',
+      entrepotId: null,
+      status: 'Actif',
     };
   }
 

@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 
+import { TruckService, Truck } from '../services/truck.service';
+import { WarehouseService } from '../services/warehouse.service';
+
 type UserRole = 'admin' | 'operator' | 'driver' | 'security';
 type UserStatus = 'Actif' | 'Inactif' | 'En attente';
 
@@ -14,27 +17,6 @@ interface StoredUser {
   entrepotId: number | null;
   status: UserStatus;
   createdAt: string;
-}
-
-type AdvancedTruckStatus =
-  | 'REFUSE_EN_ATTENTE_GERANT'
-  | 'REFUSE_RENVOYE'
-  | 'REFUSE_REINTEGRE'
-  | 'ACCEPTE_FINAL';
-
-interface StoredTruck {
-  id: number;
-  entrepotId: number;
-  statut: string;
-  createdAt: string;
-  unreadForAdmin?: boolean;
-  advancedStatus?: AdvancedTruckStatus;
-}
-
-interface StoredWarehouse {
-  id: number;
-  name: string;
-  location: string;
 }
 
 type PeriodFilter = 'day' | 'week' | 'month' | 'year';
@@ -56,7 +38,9 @@ export class UserDashboardMain implements OnInit {
   period: PeriodFilter = 'day';
 
   // data
-  trucks: StoredTruck[] = [];
+  trucks: Truck[] = [];
+
+  constructor(private truckService: TruckService, private warehouseService: WarehouseService) {}
 
   ngOnInit(): void {
     this.loadCurrentUser();
@@ -78,28 +62,27 @@ export class UserDashboardMain implements OnInit {
   }
 
   private loadEntrepotLabel(): void {
-    const raw = localStorage.getItem('warehouses');
-    const warehouses: StoredWarehouse[] = raw ? JSON.parse(raw) : [];
-
     if (this.entrepotId === null) {
       this.entrepotName = 'Tous les entrepôts';
       return;
     }
 
-    const wh = warehouses.find((w) => w.id === this.entrepotId);
-    this.entrepotName = wh?.name ?? 'Entrepôt';
+    this.warehouseService.getWarehouse(this.entrepotId).subscribe({
+      next: (w) => (this.entrepotName = w.name),
+      error: () => (this.entrepotName = 'Entrepôt inconnu'),
+    });
   }
 
   private loadTrucks(): void {
-    const raw = localStorage.getItem('trucks');
-    const all: StoredTruck[] = raw ? JSON.parse(raw) : [];
+    const filterId = this.entrepotId ?? undefined; // undefined loads all for admin
 
-    // ✅ scope entrepôt user
-    const scoped =
-      this.entrepotId === null ? all : all.filter((t) => t.entrepotId === this.entrepotId);
-
-    // ✅ scope période
-    this.trucks = this.applyPeriodFilter(scoped, this.period);
+    this.truckService.getTrucks(filterId).subscribe({
+      next: (data) => {
+        // Apply period filter locally on the fetched data
+        this.trucks = this.applyPeriodFilter(data, this.period);
+      },
+      error: (err) => console.error('Erreur loading trucks', err),
+    });
   }
 
   setPeriod(p: PeriodFilter): void {
@@ -107,7 +90,7 @@ export class UserDashboardMain implements OnInit {
     this.loadTrucks();
   }
 
-  private applyPeriodFilter(list: StoredTruck[], period: PeriodFilter): StoredTruck[] {
+  private applyPeriodFilter(list: Truck[], period: PeriodFilter): Truck[] {
     const now = new Date();
     const start = new Date(now);
 
@@ -124,7 +107,8 @@ export class UserDashboardMain implements OnInit {
     const startTime = start.getTime();
 
     return list.filter((t) => {
-      const time = new Date(t.createdAt).getTime();
+      const dateStr = t.createdAt || '';
+      const time = new Date(dateStr).getTime();
       return !Number.isNaN(time) && time >= startTime;
     });
   }
@@ -142,9 +126,8 @@ export class UserDashboardMain implements OnInit {
 
   // interprétation actuelle du flux UserEntrepot : "Validé" = en cours côté gérant
   get enDechargement(): number {
-    return this.trucks.filter(
-      (t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
-    ).length;
+    return this.trucks.filter((t) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL')
+      .length;
   }
 
   get decharges(): number {

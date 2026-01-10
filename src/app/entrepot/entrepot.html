@@ -174,7 +174,10 @@
 
                 <!-- LIGNES -->
                 <tr *ngFor="let t of filteredTrucks">
-                  <td class="cell-main">{{ t.immatriculation }}</td>
+                  <td class="cell-main">
+                    {{ t.immatriculation }}
+                    <span *ngIf="t.unreadForAdmin" class="badge-new">Nouveau</span>
+                  </td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
                   <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
                   <td class="cell-status">

@@ -159,10 +159,25 @@
                 <tr *ngIf="filteredTrucks.length === 0">
                   <td colspan="6" class="cell-muted">Aucun camion dans cette catégorie</td>
                 </tr>
-
                 <!-- LIGNES -->
                 <tr *ngFor="let t of filteredTrucks">
-                  <td>{{ t.immatriculation }}</td>
+                  <td>
+                    {{ t.immatriculation }}
+                    <span
+                      *ngIf="t.unreadForGerant"
+                      class="badge-new"
+                      style="
+                        background-color: #ef4444;
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        font-size: 0.7em;
+                        margin-left: 5px;
+                        font-weight: bold;
+                      "
+                      >Nouveau</span
+                    >
+                  </td>
                   <td class="cell-muted">{{ t.transporteur }}</td>
                   <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
 

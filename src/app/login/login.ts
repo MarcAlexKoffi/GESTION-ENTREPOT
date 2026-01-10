@@ -2,21 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-
-type UserRole = 'admin' | 'operator' | 'driver' | 'security';
-type UserStatus = 'Actif' | 'Inactif' | 'En attente';
-
-interface StoredUser {
-  id: number;
-  nom: string;
-  email: string;
-  username: string;
-  password: string;
-  role: UserRole;
-  entrepotId: number | null;
-  status: UserStatus;
-  createdAt: string;
-}
+import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -26,16 +12,14 @@ interface StoredUser {
   styleUrl: './login.scss',
 })
 export class Login {
-  private readonly usersKey = 'users';
-  private readonly currentUserKey = 'currentUser';
-
   username = '';
   password = '';
   showPassword = false;
 
   errorMessage: string | null = null;
+  isLoading = false;
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private authService: AuthService) {}
 
   togglePassword(): void {
     this.showPassword = !this.showPassword;
@@ -44,58 +28,36 @@ export class Login {
   onSubmit(): void {
     this.errorMessage = null;
 
-    const username = this.username.trim();
-    const password = this.password;
-
-    if (!username || !password) {
+    if (!this.username.trim() || !this.password) {
       this.errorMessage = 'Veuillez saisir votre identifiant et votre mot de passe.';
       return;
     }
 
-    const raw = localStorage.getItem(this.usersKey);
-    if (!raw) {
-      this.errorMessage = "Aucun utilisateur n'existe. Créez d'abord un compte admin.";
-      return;
-    }
+    this.isLoading = true;
+    this.authService.login({ username: this.username, password: this.password }).subscribe({
+      next: (user) => {
+        this.isLoading = false;
 
-    let users: StoredUser[] = [];
-    try {
-      users = JSON.parse(raw) as StoredUser[];
-    } catch {
-      users = [];
-    }
-
-    const found = users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
-    );
-
-    if (!found) {
-      this.errorMessage = 'Identifiant ou mot de passe incorrect.';
-      return;
-    }
-
-    if (found.status !== 'Actif') {
-      this.errorMessage = `Votre compte est "${found.status}". Contactez un administrateur.`;
-      return;
-    }
-
-   // session (sans backend)
-localStorage.setItem(this.currentUserKey, JSON.stringify(found));
-
-// ✅ Redirection selon rôle / entrepôt
-if (found.role === 'admin') {
-  this.router.navigate(['/dashboard/dashboard-main']);
-  return;
-}
-
-if (found.entrepotId !== null) {
-  this.router.navigate(['/userdashboard/userentrepot', found.entrepotId]);
-  return;
-}
-
-// fallback (au cas où un ancien user sans entrepôt existe déjà)
-this.errorMessage = "Votre compte n'a pas d'entrepôt assigné. Contactez un administrateur.";
-localStorage.removeItem(this.currentUserKey);
-
+        if (user.role === 'admin') {
+          this.router.navigate(['/dashboard/dashboard-main']);
+        } else if (user.entrepotId) {
+          this.router.navigate(['/userdashboard/userentrepot', user.entrepotId]);
+        } else {
+          this.errorMessage =
+            "Votre compte n'a pas d'entrepôt assigné. Contactez un administrateur.";
+          this.authService.logout();
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        if (err.status === 401) {
+          this.errorMessage = 'Identifiant ou mot de passe incorrect.';
+        } else if (err.status === 403) {
+          this.errorMessage = 'Compte inactif ou suspendu.';
+        } else {
+          this.errorMessage = 'Erreur de connexion serveur.';
+        }
+      },
+    });
   }
 }
