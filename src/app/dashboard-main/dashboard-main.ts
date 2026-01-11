@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
@@ -68,11 +68,11 @@ export class DashboardMain implements OnInit {
     discharged: 0,
   };
 
-  constructor(
-    private router: Router,
-    private warehouseService: WarehouseService,
-    private truckService: TruckService
-  ) {}
+  private router = inject(Router);
+  private warehouseService = inject(WarehouseService);
+  private truckService = inject(TruckService);
+
+  constructor() {}
 
   // ---------------------------------------------------------------------------
   // INITIALISATION
@@ -132,8 +132,9 @@ export class DashboardMain implements OnInit {
   // ---------------------------------------------------------------------------
   // NAVIGATION VERS LA PAGE DÉTAIL D'UN ENTREPÔT
   // ---------------------------------------------------------------------------
-  handleContanerClick(card: CardInfo): void {
-    console.log(card);
+  handleContainerClick(card: CardInfo): void {
+    console.warn('CLICKED CARD:', card);
+    console.warn(`Navigating to /dashboard/entrepot/${card.id} for ${card.name}`);
     this.router.navigate(['/dashboard/entrepot', card.id]);
   }
 

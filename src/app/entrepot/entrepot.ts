@@ -1,13 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TruckService, Truck } from '../services/truck.service';
-import { StoredWarehouse } from '../services/warehouse.service';
-
-// type TruckStatus = ... (déjà dans TruckService via union string)
-// interface Truck ... (importée)
-// interface AdminComment ... (supprimée)
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
 
 @Component({
   selector: 'app-entrepot',
@@ -40,33 +36,37 @@ export class Entrepot implements OnInit {
   private readonly truckStorageKey = 'trucks';
   // private readonly commentStorageKey = 'truckAdminComments'; // Plus utilisé
 
-  constructor(private route: ActivatedRoute, private truckService: TruckService) {}
+  private route = inject(ActivatedRoute);
+  private truckService = inject(TruckService);
+  private warehouseService = inject(WarehouseService);
+
+  constructor() {}
 
   ngOnInit(): void {
-    const idParam = Number(this.route.snapshot.paramMap.get('id'));
+    this.route.paramMap.subscribe((params) => {
+      const idParam = Number(params.get('id'));
 
-    let warehouses: StoredWarehouse[] = [];
-    const saved = localStorage.getItem('warehouses');
-    if (saved) {
-      try {
-        warehouses = JSON.parse(saved);
-      } catch {}
-    }
+      // Reset potentially stale data
+      this.entrepot = { id: 0, nom: 'Chargement...', lieu: '...' };
+      this.trucks = [];
 
-    if (warehouses.length === 0) {
-      warehouses = [
-        { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes', imageUrl: '' },
-      ];
-    }
+      this.loadWarehouse(idParam);
+    });
+  }
 
-    const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
-    this.entrepot = {
-      id: found.id,
-      nom: found.name,
-      lieu: found.location,
-    };
-
-    this.loadTrucks();
+  private loadWarehouse(id: number): void {
+    this.warehouseService.getWarehouse(id).subscribe({
+      next: (found: any) => {
+        this.entrepot = {
+          id: found.id,
+          nom: found.name,
+          lieu: found.location,
+        };
+        // Charger les camions une fois l'ID de l'entrepôt connu
+        this.loadTrucks();
+      },
+      error: (err: any) => console.error('Erreur chargement entrepôt', err),
+    });
   }
 
   // ================================================================
@@ -226,8 +226,8 @@ export class Entrepot implements OnInit {
         if (!haystack.includes(search)) return false;
       }
 
-      // période
-      return this.isInSelectedPeriod(t.createdAt || '');
+      // période (basée sur heureArrivee car createdAt est vide en base)
+      return this.isInSelectedPeriod(t.heureArrivee || '');
     });
   }
   get selectedPeriodLabel(): string {
@@ -353,7 +353,7 @@ export class Entrepot implements OnInit {
     <h2>Détails du camion</h2>
     <p><strong>Immatriculation :</strong> ${truck.immatriculation}</p>
     <p><strong>Transporteur :</strong> ${truck.transporteur}</p>
-    <p><strong>Coopérative :</strong> ${truck.coperative ?? '—'}</p>
+    <p><strong>Coopérative :</strong> ${truck.cooperative ?? '—'}</p>
     <p><strong>Entrepôt :</strong> ${this.entrepot.nom}</p>
     <p><strong>Statut :</strong> ${truck.statut}</p>
     <p><strong>Heure d’arrivée :</strong> ${truck.heureArrivee}</p>

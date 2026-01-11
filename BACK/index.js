@@ -13,6 +13,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // =======================
@@ -42,7 +46,7 @@ console.log('Pool MySQL initialisé');
         immatriculation VARCHAR(255) NOT NULL,
         transporteur VARCHAR(255) NOT NULL,
         transfert VARCHAR(255) NULL,
-        coperative VARCHAR(255) NULL,
+        cooperative VARCHAR(255) NULL,
         statut VARCHAR(50) DEFAULT 'Enregistré',
         heureArrivee DATETIME DEFAULT CURRENT_TIMESTAMP,
         heureDepart DATETIME NULL,
@@ -64,8 +68,13 @@ console.log('Pool MySQL initialisé');
 
     try {
       await connection.query("ALTER TABLE trucks ADD COLUMN transfert VARCHAR(255) NULL");
-      await connection.query("ALTER TABLE trucks ADD COLUMN coperative VARCHAR(255) NULL");
-      console.log("Migration colonnes transfert/coperative effectuée.");
+      await connection.query("ALTER TABLE trucks ADD COLUMN cooperative VARCHAR(255) NULL");
+      // Migration: MOVE data from old column if exists
+      try {
+        await connection.query("UPDATE trucks SET cooperative = coperative WHERE cooperative IS NULL AND coperative IS NOT NULL");
+        console.log("Migration des données de coperative vers cooperative effectuée.");
+      } catch (e) {}
+      console.log("Migration colonnes transfert/cooperative effectuée.");
     } catch (e) {}
 
     // Aggressive Migration: Fix ID 0 and enforce AUTO_INCREMENT
@@ -146,10 +155,21 @@ console.log('Pool MySQL initialisé');
 // POST Truck
 app.post('/api/trucks', async (req, res) => {
   // On extrait explicitement les champs colonnes
-  const { entrepotId, immatriculation, transporteur, transfert, coperative, statut, poids, ...extras } = req.body;
+  const { entrepotId, immatriculation, transporteur, transfert, cooperative, statut, poids, ...extras } = req.body;
 
   if (!entrepotId || !immatriculation || !transporteur) {
     return res.status(400).json({ message: 'Champs obligatoires manquants (entrepotId, immatriculation, transporteur)' });
+  }
+
+  // VALIDATION: Check if entrepot exists
+  try {
+     const [warehouseCheck] = await db.query('SELECT id FROM warehouses WHERE id = ?', [entrepotId]);
+     if (warehouseCheck.length === 0) {
+        return res.status(400).json({ message: 'Entrepôt invalide ou inexistant' });
+     }
+  } catch(e) {
+     console.error("Validation Error:", e);
+     return res.status(500).json({ message: 'Erreur validation entrepôt', error: e.message });
   }
 
     // Tout le reste part dans metadata (ex: history, kor, th, products object...)
@@ -159,14 +179,14 @@ app.post('/api/trucks', async (req, res) => {
 
     try {
         const [result] = await db.query(
-            `INSERT INTO trucks (entrepotId, immatriculation, transporteur, transfert, coperative, statut, poids, metadata, heureArrivee)
+            `INSERT INTO trucks (entrepotId, immatriculation, transporteur, transfert, cooperative, statut, poids, metadata, heureArrivee)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
             [
                 entrepotId,
                 immatriculation,
                 transporteur,
                 transfert || null,
-                coperative || null,
+                cooperative || null,
                 statut || 'Enregistré',
                 poids || null,
                 metadata
@@ -179,7 +199,7 @@ app.post('/api/trucks', async (req, res) => {
             immatriculation,
             transporteur,
             transfert,
-            coperative,
+            cooperative,
             statut: statut || 'Enregistré',
             poids,
             heureArrivee: new Date().toISOString(),
@@ -196,12 +216,16 @@ app.post('/api/trucks', async (req, res) => {
 // GET Trucks
 app.get('/api/trucks', async (req, res) => {
   const { entrepotId } = req.query;
+  console.log('GET /api/trucks called with entrepotId:', entrepotId);
   try {
     let query = 'SELECT *, heureArrivee as createdAt FROM trucks';
     const params = [];
-    if (entrepotId) {
+    if (entrepotId !== undefined && entrepotId !== null && entrepotId !== '' && entrepotId !== 'undefined') {
       query += ' WHERE entrepotId = ?';
-      params.push(entrepotId);
+      params.push(parseInt(entrepotId, 10)); // Force INT
+    } else if (req.query.hasOwnProperty('entrepotId')) {
+      // Si un entrepotId est spécifié mais invalide (chaine vide ou undefined string), on ne retourne rien
+      return res.json([]);
     }
     query += ' ORDER BY id DESC';
     
@@ -231,7 +255,7 @@ app.put('/api/trucks/:id', async (req, res) => {
     immatriculation, 
     transporteur, 
     transfert,
-    coperative,
+    cooperative,
     statut, 
     poids, 
     heureDepart, 
@@ -273,7 +297,7 @@ app.put('/api/trucks/:id', async (req, res) => {
     if (immatriculation !== undefined) { fields.push('immatriculation=?'); values.push(immatriculation); }
     if (transporteur !== undefined) { fields.push('transporteur=?'); values.push(transporteur); }
     if (transfert !== undefined) { fields.push('transfert=?'); values.push(transfert); }
-    if (coperative !== undefined) { fields.push('coperative=?'); values.push(coperative); }
+    if (cooperative !== undefined) { fields.push('cooperative=?'); values.push(cooperative); }
     if (statut !== undefined) { fields.push('statut=?'); values.push(statut); }
     if (poids !== undefined) { fields.push('poids=?'); values.push(poids); }
     if (heureDepart !== undefined) { fields.push('heureDepart=?'); values.push(heureDepart); }
@@ -475,6 +499,8 @@ const upload = multer({
 app.get('/api/warehouses', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM warehouses ORDER BY id DESC');
+    console.log("GET /api/warehouses response:");
+    rows.forEach(r => console.log(`ID: ${r.id}, Name: ${r.name}`));
     res.json(rows);
   } catch (err) {
     console.error(err);
