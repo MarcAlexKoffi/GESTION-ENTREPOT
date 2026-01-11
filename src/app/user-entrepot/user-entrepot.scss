@@ -1096,3 +1096,20 @@ body.dark .actions-menu button {
 body.dark .actions-menu button:hover {
   background: rgba(59, 130, 246, 0.18);
 }
+
+    .truck-input.input-error {
+      border-color: #ef4444;
+      background-color: #fef2f2;
+    }
+    
+    .error-message {
+      color: #ef4444;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-top: 0.5rem;
+      text-align: center;
+      background-color: #fef2f2;
+      border: 1px solid #fee2e2;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+    }

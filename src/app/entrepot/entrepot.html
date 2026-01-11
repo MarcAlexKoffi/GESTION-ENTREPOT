@@ -260,8 +260,17 @@
         </div>
 
         <div class="field">
+          <label>TH</label>
+          <input class="truck-input" [value]="selectedTruck.th || '—'" disabled />
+        </div>
+
+        <div class="field">
           <label>Heure d’arrivée</label>
-          <input class="truck-input" [value]="selectedTruck.heureArrivee" disabled />
+          <input
+            class="truck-input"
+            [value]="selectedTruck.heureArrivee | date : 'HH:mm'"
+            disabled
+          />
         </div>
 
         <!-- COMMENTAIRE ADMIN -->

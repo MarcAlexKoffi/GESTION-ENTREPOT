@@ -31,6 +31,80 @@ export class UserEntrepot implements OnInit {
   showSuccessBanner = false;
   showDetailsModal = false;
 
+  // Validation States
+  isAnalysisInvalid = false;
+  analysisError = '';
+
+  selectedTruckForHistory: UITruck | null = null;
+
+  // ... (skipping unchanged properties)
+
+  // =========================================================
+  // ANALYSES
+  // =========================================================
+  openAnalysisModal(t: UITruck) {
+    if (t.unreadForGerant) {
+      t.unreadForGerant = false;
+      this.truckService.updateTruck(t.id, { unreadForGerant: false }).subscribe();
+    }
+    this.selectedTruckForAnalysis = t;
+    this.analysisData = { kor: t.kor ?? '', th: t.th ?? '' };
+
+    // Reset validation state
+    this.isAnalysisInvalid = false;
+    this.analysisError = '';
+
+    this.showAnalysisModal = true;
+  }
+
+  submitAnalysis() {
+    if (!this.selectedTruckForAnalysis) return;
+
+    // VALIDATION: KOR et TH obligatoires et numériques
+    // Use String(...) to ensure we can trim, and handle potential numbers from backend/input
+    const k = String(this.analysisData.kor || '').trim();
+    const h = String(this.analysisData.th || '').trim();
+
+    this.isAnalysisInvalid = false;
+    this.analysisError = '';
+
+    if (!k || !h) {
+      this.isAnalysisInvalid = true;
+      this.analysisError = 'Veuillez renseigner le KOR et le TH.';
+      return;
+    }
+
+    if (isNaN(Number(k)) || isNaN(Number(h))) {
+      this.isAnalysisInvalid = true;
+      this.analysisError = 'Le KOR et le TH doivent être des valeurs numériques.';
+      return;
+    }
+
+    const t = this.selectedTruckForAnalysis;
+    // Local update
+    t.kor = k;
+    t.th = h;
+    t.statut = 'En attente';
+
+    this.addHistory(t, 'Analyses envoyées à l’administrateur');
+
+    // API
+    const updates: Partial<Truck> = {
+      kor: t.kor,
+      th: t.th,
+      statut: 'En attente',
+      history: t.history,
+    };
+
+    this.truckService.updateTruck(t.id, updates).subscribe({
+      next: () => {
+        this.showAnalysisModal = false;
+        this.refreshView();
+      },
+      error: () => alert('Erreur envoi analyses'),
+    });
+  }
+
   lastSavedStatutLabel = '';
 
   // Formulaires initiaux
@@ -44,7 +118,6 @@ export class UserEntrepot implements OnInit {
   selectedTruckForEdit: UITruck | null = null;
   selectedTruckForAnalysis: UITruck | null = null;
   selectedTruckForProducts: UITruck | null = null;
-  selectedTruckForHistory: UITruck | null = null;
   selectedTruckForDetails: UITruck | null = null;
 
   editTruckData = { immatriculation: '', transporteur: '', transfert: '', cooperative: '' };
@@ -172,7 +245,16 @@ export class UserEntrepot implements OnInit {
   applyFilters(): void {
     const base = this.getBaseListForTab();
 
-    console.log('[user-entrepot] applyFilters - currentTab=', this.currentTab, 'selectedPeriod=', this.selectedPeriod, 'selectedStatus=', this.selectedStatus, 'baseCount=', base.length);
+    console.log(
+      '[user-entrepot] applyFilters - currentTab=',
+      this.currentTab,
+      'selectedPeriod=',
+      this.selectedPeriod,
+      'selectedStatus=',
+      this.selectedStatus,
+      'baseCount=',
+      base.length
+    );
 
     const search = this.filterSearch.trim().toLowerCase();
     const now = new Date();
@@ -227,35 +309,32 @@ export class UserEntrepot implements OnInit {
       return true;
     });
 
-    console.log('[user-entrepot] applyFilters - result filteredTrucks.length=', this.filteredTrucks.length);
+    console.log(
+      '[user-entrepot] applyFilters - result filteredTrucks.length=',
+      this.filteredTrucks.length
+    );
   }
 
   ngOnInit(): void {
-<<<<<<< HEAD
     console.log('[user-entrepot] ngOnInit - start, entrepot.id =', this.entrepot.id);
     this.loadEntrepot();
-    console.log('[user-entrepot] ngOnInit - called loadEntrepot(), entrepot.id =', this.entrepot.id);
+    console.log(
+      '[user-entrepot] ngOnInit - called loadEntrepot(), entrepot.id =',
+      this.entrepot.id
+    );
     console.log('[user-entrepot] ngOnInit - waiting for entrepot to load before trucks');
-=======
-    this.route.paramMap.subscribe((params) => {
-      const idParam = Number(params.get('id'));
-      this.loadEntrepot(idParam);
-    });
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
   }
 
   private refreshView(): void {
     this.loadTrucks();
   }
 
-<<<<<<< HEAD
   // =========================================================
   // LOCAL STORAGE FALLBACK (per warehouse)
   // =========================================================
   private loadTrucksFromStorage(): void {
     const raw = localStorage.getItem('trucks');
     const all: UITruck[] = raw ? JSON.parse(raw) : [];
-    // Keep only trucks for current entrepot (coerce to Number)
     this.trucks = all
       .filter((t) => Number(t.entrepotId) === Number(this.entrepot.id))
       .map((t) => ({ ...t, showMenu: false }));
@@ -293,64 +372,49 @@ export class UserEntrepot implements OnInit {
   // =========================================================
   loadEntrepot(): void {
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
-=======
-  loadEntrepot(idParam: number): void {
-    // SÉCURITÉ : Vérifier que l'utilisateur a le droit d'accéder à cet entrepôt
-    const rawUser = localStorage.getItem('currentUser');
-    if (rawUser) {
-      try {
-        const user = JSON.parse(rawUser);
-        // FORCE CONVERSION TO NUMBER FOR COMPARISON
-        const userEntrepotId = Number(user.entrepotId);
-
-        // Only check for operators
-        if (user.role === 'operator' && userEntrepotId !== idParam) {
-          console.warn(`Accès refusé : User(${userEntrepotId}) vs Route(${idParam})`);
-          this.router.navigate(['/userdashboard/userentrepot', userEntrepotId]);
-          return;
-        }
-      } catch (e) {}
-    }
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
 
     console.log('[user-entrepot] loadEntrepot - idParam=', idParam);
     this.warehouseService.getWarehouse(idParam).subscribe({
-<<<<<<< HEAD
       next: (w) => {
         console.log('[user-entrepot] loadEntrepot - API returned', w);
         this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
         console.log('[user-entrepot] loadEntrepot - this.entrepot now', this.entrepot);
+        try {
+          localStorage.setItem('lastVisitedEntrepot', String(this.entrepot.id));
+        } catch (e) {
+          /* ignore */
+        }
         // maintenant que l'entrepôt est chargé, charger les camions
-        try { localStorage.setItem('lastVisitedEntrepot', String(this.entrepot.id)); } catch (e) { /* ignore */ }
-=======
-      next: (w: StoredWarehouse) => {
-        this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
-        // Une fois l'entrepôt chargé, on charge les camions
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
         this.loadTrucks();
       },
       error: (err: any) => {
         console.error('Erreur chargement entrepôt', err);
+        // fallback to local storage if API fails
+        try {
+          const raw = localStorage.getItem('warehouses');
+          const warehouses: StoredWarehouse[] = raw ? JSON.parse(raw) : [];
+          const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
+          if (found) {
+            this.entrepot = { id: found.id, nom: found.name, lieu: found.location };
+          }
+        } catch (e) {
+          // ignore parsing errors
+        }
+        this.loadTrucksFromStorage();
       },
     });
   }
 
   loadTrucks(): void {
-<<<<<<< HEAD
     console.log('[user-entrepot] loadTrucks - requesting trucks for entrepotId=', this.entrepot.id);
     this.truckService.getTrucks(this.entrepot.id).subscribe({
       next: (data) => {
         console.log('[user-entrepot] loadTrucks - received', data?.length, 'trucks from API');
         // Force filter by entrepotId in case backend returns extras
-        const filtered = (data || []).filter((t) => Number(t.entrepotId) === Number(this.entrepot.id));
+        const filtered = (data || []).filter(
+          (t) => Number(t.entrepotId) === Number(this.entrepot.id)
+        );
         this.trucks = filtered.map((t) => ({ ...t, showMenu: false }));
-=======
-    console.log('UserEntrepot: loading trucks for ID:', this.entrepot.id);
-    if (!this.entrepot.id) return;
-    this.truckService.getTrucks(this.entrepot.id).subscribe({
-      next: (data: Truck[]) => {
-        this.trucks = data.map((t) => ({ ...t, showMenu: false }));
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
         this.applyFilters();
         // persist a local copy per-warehouse
         try {
@@ -358,16 +422,15 @@ export class UserEntrepot implements OnInit {
         } catch (e) {
           console.warn('Could not save trucks to localStorage', e);
         }
-        console.log('[user-entrepot] loadTrucks - after applyFilters, filteredTrucks.length=', this.filteredTrucks.length);
+        console.log(
+          '[user-entrepot] loadTrucks - after applyFilters, filteredTrucks.length=',
+          this.filteredTrucks.length
+        );
       },
       error: (err) => {
         console.error('Erreur loading trucks, falling back to localStorage', err);
         this.loadTrucksFromStorage();
       },
-<<<<<<< HEAD
-=======
-      error: (err: any) => console.error('Erreur loading trucks', err),
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
     });
   }
 
@@ -424,7 +487,10 @@ export class UserEntrepot implements OnInit {
     }
   }
   get trucksByPeriod(): UITruck[] {
-    return this.trucks.filter((t) => this.isInSelectedPeriod(t.heureArrivee || ''));
+    // Prefer `createdAt` when available (ISO), otherwise fall back to `heureArrivee` (time-only)
+    return this.trucks.filter((t) =>
+      this.isInSelectedPeriod((t as any).createdAt || t.heureArrivee || '')
+    );
   }
 
   // =========================================================
@@ -548,7 +614,8 @@ export class UserEntrepot implements OnInit {
       th: '',
 
       statut: statutInit,
-      heureArrivee: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      // FIX: Use full ISO string instead of just time, so simple date filtering (new Date(ts)) works immediately
+      heureArrivee: now.toISOString(),
       history: [{ event: 'Camion enregistré', by: 'gerant', date: now.toISOString() }],
     };
 
@@ -564,11 +631,11 @@ export class UserEntrepot implements OnInit {
           immatriculation: (truckPayload.immatriculation as string) || '',
           transporteur: (truckPayload.transporteur as string) || '',
           transfert: (truckPayload.transfert as string) || '',
-          coperative: (truckPayload.coperative as string) || '',
+          cooperative: (truckPayload.cooperative as string) || '',
           kor: truckPayload.kor || '',
           th: truckPayload.th || '',
           statut: (truckPayload.statut as any) || ('Enregistré' as any),
-          heureArrivee: truckPayload.heureArrivee || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          heureArrivee: truckPayload.heureArrivee || nowIso,
           history: truckPayload.history || [],
           createdAt: nowIso,
           showMenu: false,
@@ -602,11 +669,11 @@ export class UserEntrepot implements OnInit {
           immatriculation: (truckPayload.immatriculation as string) || '',
           transporteur: (truckPayload.transporteur as string) || '',
           transfert: (truckPayload.transfert as string) || '',
-          coperative: (truckPayload.coperative as string) || '',
+          cooperative: (truckPayload.cooperative as string) || '',
           kor: truckPayload.kor || '',
           th: truckPayload.th || '',
           statut: (truckPayload.statut as any) || ('Enregistré' as any),
-          heureArrivee: truckPayload.heureArrivee || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          heureArrivee: truckPayload.heureArrivee || nowIso,
           history: truckPayload.history || [],
           createdAt: nowIso,
           showMenu: false,
@@ -670,47 +737,6 @@ export class UserEntrepot implements OnInit {
         this.refreshView();
       },
       error: () => alert('Erreur modification'),
-    });
-  }
-
-  // =========================================================
-  // ANALYSES
-  // =========================================================
-  openAnalysisModal(t: UITruck) {
-    if (t.unreadForGerant) {
-      t.unreadForGerant = false;
-      this.truckService.updateTruck(t.id, { unreadForGerant: false }).subscribe();
-    }
-    this.selectedTruckForAnalysis = t;
-    this.analysisData = { kor: t.kor ?? '', th: t.th ?? '' };
-    this.showAnalysisModal = true;
-  }
-
-  submitAnalysis() {
-    if (!this.selectedTruckForAnalysis) return;
-
-    const t = this.selectedTruckForAnalysis;
-    // Local update
-    t.kor = this.analysisData.kor.trim();
-    t.th = this.analysisData.th.trim();
-    t.statut = 'En attente';
-
-    this.addHistory(t, 'Analyses envoyées à l’administrateur');
-
-    // API
-    const updates: Partial<Truck> = {
-      kor: t.kor,
-      th: t.th,
-      statut: 'En attente',
-      history: t.history,
-    };
-
-    this.truckService.updateTruck(t.id, updates).subscribe({
-      next: () => {
-        this.showAnalysisModal = false;
-        this.refreshView();
-      },
-      error: () => alert('Erreur envoi analyses'),
     });
   }
 

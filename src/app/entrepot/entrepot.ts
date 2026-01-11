@@ -4,13 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TruckService, Truck } from '../services/truck.service';
 import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
-<<<<<<< HEAD
-
-// type TruckStatus = ... (déjà dans TruckService via union string)
-// interface Truck ... (importée)
-// interface AdminComment ... (supprimée)
-=======
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
 
 @Component({
   selector: 'app-entrepot',
@@ -43,80 +36,48 @@ export class Entrepot implements OnInit {
   private readonly truckStorageKey = 'trucks';
   // private readonly commentStorageKey = 'truckAdminComments'; // Plus utilisé
 
-<<<<<<< HEAD
-  constructor(
-    private route: ActivatedRoute,
-    private truckService: TruckService,
-    private warehouseService: WarehouseService
-  ) {}
-=======
   private route = inject(ActivatedRoute);
   private truckService = inject(TruckService);
   private warehouseService = inject(WarehouseService);
 
   constructor() {}
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
       const idParam = Number(params.get('id'));
 
-<<<<<<< HEAD
-    // Prefer API: fetch warehouse by id. If API fails, fallback to localStorage/default.
-    this.warehouseService.getWarehouse(idParam).subscribe({
-      next: (w) => {
-        this.entrepot = {
-          id: w.id,
-          nom: w.name,
-          lieu: w.location,
-        };
-
-        this.loadTrucks();
-      },
-      error: () => {
-        let warehouses: StoredWarehouse[] = [];
-        const saved = localStorage.getItem('warehouses');
-        if (saved) {
-          try {
-            warehouses = JSON.parse(saved);
-          } catch {}
-        }
-
-        if (warehouses.length === 0) {
-          warehouses = [
-            { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes', imageUrl: '' },
-          ];
-        }
-
-        const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
-=======
-      // Reset potentially stale data
+      // Reset potentially stale data while loading
       this.entrepot = { id: 0, nom: 'Chargement...', lieu: '...' };
       this.trucks = [];
 
-      this.loadWarehouse(idParam);
-    });
-  }
+      // Try API first, fallback to localStorage if it fails
+      this.warehouseService.getWarehouse(idParam).subscribe({
+        next: (w: any) => {
+          this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
+          this.loadTrucks();
+        },
+        error: () => {
+          let warehouses: StoredWarehouse[] = [];
+          const saved = localStorage.getItem('warehouses');
+          if (saved) {
+            try {
+              warehouses = JSON.parse(saved);
+            } catch (e) {
+              warehouses = [];
+            }
+          }
 
-  private loadWarehouse(id: number): void {
-    this.warehouseService.getWarehouse(id).subscribe({
-      next: (found: any) => {
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
-        this.entrepot = {
-          id: found.id,
-          nom: found.name,
-          lieu: found.location,
-        };
-<<<<<<< HEAD
+          if (warehouses.length === 0) {
+            warehouses = [
+              { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes', imageUrl: '' },
+            ];
+          }
 
-        this.loadTrucks();
-      },
-=======
-        // Charger les camions une fois l'ID de l'entrepôt connu
-        this.loadTrucks();
-      },
-      error: (err: any) => console.error('Erreur chargement entrepôt', err),
->>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
+          const found = warehouses.find((x) => x.id === idParam) ?? warehouses[0];
+          this.entrepot = { id: found.id, nom: found.name, lieu: found.location };
+          this.loadTrucks();
+        },
+      });
     });
   }
 
@@ -277,8 +238,9 @@ export class Entrepot implements OnInit {
         if (!haystack.includes(search)) return false;
       }
 
-      // période (basée sur heureArrivee car createdAt est vide en base)
-      return this.isInSelectedPeriod(t.heureArrivee || '');
+      // période: prefer full `createdAt` if present, otherwise fall back to `heureArrivee`
+      const dateToUse = (t as any).createdAt || t.heureArrivee || '';
+      return this.isInSelectedPeriod(dateToUse);
     });
   }
   get selectedPeriodLabel(): string {
