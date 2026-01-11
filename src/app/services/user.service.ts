@@ -10,6 +10,7 @@ export interface User {
   role: 'admin' | 'operator';
   entrepotId: number | null;
   status: 'Actif' | 'Inactif' | 'En attente';
+  cooperative?: string;
   createdAt?: string;
   entrepotName?: string; // From join
 }

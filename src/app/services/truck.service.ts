@@ -30,7 +30,7 @@ export interface Truck {
   transfert?: string;
   kor?: string;
   th?: string;
-  coperative?: string;
+  cooperative?: string;
   comment?: string; // Commentaire admin
   products?: {
     numeroLot: string;
@@ -51,8 +51,8 @@ export class TruckService {
   // Récupérer les camions (option: filtre par entrepotId)
   getTrucks(entrepotId?: number): Observable<Truck[]> {
     let params = new HttpParams();
-    if (entrepotId) {
-      params = params.set('entrepotId', entrepotId);
+    if (entrepotId !== undefined && entrepotId !== null) {
+      params = params.set('entrepotId', entrepotId.toString());
     }
     return this.http.get<Truck[]>(this.apiUrl, { params });
   }

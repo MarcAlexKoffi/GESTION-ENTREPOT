@@ -84,9 +84,13 @@ export class UserDashboardMain implements OnInit {
   }
 
   private loadTrucks(): void {
-    const filterId = this.entrepotId ?? undefined; // undefined loads all for admin
+    if (!this.entrepotId) {
+      console.warn('loadTrucks: No entrepotId available');
+      this.trucks = [];
+      return;
+    }
 
-    this.truckService.getTrucks(filterId).subscribe({
+    this.truckService.getTrucks(this.entrepotId).subscribe({
       next: (data) => {
         // Apply period filter locally on the fetched data
         this.trucks = this.applyPeriodFilter(data, this.period);
@@ -117,7 +121,7 @@ export class UserDashboardMain implements OnInit {
     const startTime = start.getTime();
 
     return list.filter((t) => {
-      const dateStr = t.createdAt || '';
+      const dateStr = t.heureArrivee || '';
       const time = new Date(dateStr).getTime();
       return !Number.isNaN(time) && time >= startTime;
     });

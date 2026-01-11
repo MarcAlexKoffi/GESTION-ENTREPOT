@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 
 import { TruckService, Truck } from '../services/truck.service';
 import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
@@ -38,7 +38,7 @@ export class UserEntrepot implements OnInit {
     immatriculation: '',
     transporteur: '',
     transfert: '',
-    coperative: '',
+    cooperative: '',
   };
 
   selectedTruckForEdit: UITruck | null = null;
@@ -47,7 +47,7 @@ export class UserEntrepot implements OnInit {
   selectedTruckForHistory: UITruck | null = null;
   selectedTruckForDetails: UITruck | null = null;
 
-  editTruckData = { immatriculation: '', transporteur: '', transfert: '', coperative: '' };
+  editTruckData = { immatriculation: '', transporteur: '', transfert: '', cooperative: '' };
   analysisData = { kor: '', th: '' };
 
   productForm = {
@@ -60,11 +60,12 @@ export class UserEntrepot implements OnInit {
     kor: '',
   };
 
-  constructor(
-    private route: ActivatedRoute,
-    private truckService: TruckService,
-    private warehouseService: WarehouseService
-  ) {}
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private truckService = inject(TruckService);
+  private warehouseService = inject(WarehouseService);
+
+  constructor() {}
   // ===============================
   // FILTRES (toolbar)
   // ===============================
@@ -202,7 +203,7 @@ export class UserEntrepot implements OnInit {
           ' ' +
           (t.transfert ?? '') +
           ' ' +
-          ((t as any).coperative ?? '')
+          ((t as any).cooperative ?? '')
         ).toLowerCase();
 
         if (!haystack.includes(search)) return false;
@@ -213,13 +214,14 @@ export class UserEntrepot implements OnInit {
         if (t.statut !== this.selectedStatus) return false;
       }
 
-      // 3) Période (basée sur createdAt)
+      // 3) Période (basée sur heureArrivee car createdAt est souvent null en base)
       if (this.selectedPeriod !== 'all') {
-        if (!t.createdAt) return false;
+        const dateToFilter = t.heureArrivee || '';
+        if (!dateToFilter) return false;
 
-        if (this.selectedPeriod === 'today' && !isToday(t.createdAt)) return false;
-        if (this.selectedPeriod === '7days' && !inLastDays(t.createdAt, 7)) return false;
-        if (this.selectedPeriod === '30days' && !inLastDays(t.createdAt, 30)) return false;
+        if (this.selectedPeriod === 'today' && !isToday(dateToFilter)) return false;
+        if (this.selectedPeriod === '7days' && !inLastDays(dateToFilter, 7)) return false;
+        if (this.selectedPeriod === '30days' && !inLastDays(dateToFilter, 30)) return false;
       }
 
       return true;
@@ -229,16 +231,24 @@ export class UserEntrepot implements OnInit {
   }
 
   ngOnInit(): void {
+<<<<<<< HEAD
     console.log('[user-entrepot] ngOnInit - start, entrepot.id =', this.entrepot.id);
     this.loadEntrepot();
     console.log('[user-entrepot] ngOnInit - called loadEntrepot(), entrepot.id =', this.entrepot.id);
     console.log('[user-entrepot] ngOnInit - waiting for entrepot to load before trucks');
+=======
+    this.route.paramMap.subscribe((params) => {
+      const idParam = Number(params.get('id'));
+      this.loadEntrepot(idParam);
+    });
+>>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
   }
 
   private refreshView(): void {
     this.loadTrucks();
   }
 
+<<<<<<< HEAD
   // =========================================================
   // LOCAL STORAGE FALLBACK (per warehouse)
   // =========================================================
@@ -283,27 +293,50 @@ export class UserEntrepot implements OnInit {
   // =========================================================
   loadEntrepot(): void {
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
+=======
+  loadEntrepot(idParam: number): void {
+    // SÉCURITÉ : Vérifier que l'utilisateur a le droit d'accéder à cet entrepôt
+    const rawUser = localStorage.getItem('currentUser');
+    if (rawUser) {
+      try {
+        const user = JSON.parse(rawUser);
+        // FORCE CONVERSION TO NUMBER FOR COMPARISON
+        const userEntrepotId = Number(user.entrepotId);
+
+        // Only check for operators
+        if (user.role === 'operator' && userEntrepotId !== idParam) {
+          console.warn(`Accès refusé : User(${userEntrepotId}) vs Route(${idParam})`);
+          this.router.navigate(['/userdashboard/userentrepot', userEntrepotId]);
+          return;
+        }
+      } catch (e) {}
+    }
+>>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
 
     console.log('[user-entrepot] loadEntrepot - idParam=', idParam);
     this.warehouseService.getWarehouse(idParam).subscribe({
+<<<<<<< HEAD
       next: (w) => {
         console.log('[user-entrepot] loadEntrepot - API returned', w);
         this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
         console.log('[user-entrepot] loadEntrepot - this.entrepot now', this.entrepot);
         // maintenant que l'entrepôt est chargé, charger les camions
         try { localStorage.setItem('lastVisitedEntrepot', String(this.entrepot.id)); } catch (e) { /* ignore */ }
+=======
+      next: (w: StoredWarehouse) => {
+        this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
+        // Une fois l'entrepôt chargé, on charge les camions
+>>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
         this.loadTrucks();
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Erreur chargement entrepôt', err);
       },
     });
   }
 
-  // =========================================================
-  // CHARGEMENT CAMIONS
-  // =========================================================
   loadTrucks(): void {
+<<<<<<< HEAD
     console.log('[user-entrepot] loadTrucks - requesting trucks for entrepotId=', this.entrepot.id);
     this.truckService.getTrucks(this.entrepot.id).subscribe({
       next: (data) => {
@@ -311,6 +344,13 @@ export class UserEntrepot implements OnInit {
         // Force filter by entrepotId in case backend returns extras
         const filtered = (data || []).filter((t) => Number(t.entrepotId) === Number(this.entrepot.id));
         this.trucks = filtered.map((t) => ({ ...t, showMenu: false }));
+=======
+    console.log('UserEntrepot: loading trucks for ID:', this.entrepot.id);
+    if (!this.entrepot.id) return;
+    this.truckService.getTrucks(this.entrepot.id).subscribe({
+      next: (data: Truck[]) => {
+        this.trucks = data.map((t) => ({ ...t, showMenu: false }));
+>>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
         this.applyFilters();
         // persist a local copy per-warehouse
         try {
@@ -324,6 +364,10 @@ export class UserEntrepot implements OnInit {
         console.error('Erreur loading trucks, falling back to localStorage', err);
         this.loadTrucksFromStorage();
       },
+<<<<<<< HEAD
+=======
+      error: (err: any) => console.error('Erreur loading trucks', err),
+>>>>>>> 681946aaf0fd1ba0f6cc53e250d906c7bd6ccb00
     });
   }
 
@@ -380,7 +424,7 @@ export class UserEntrepot implements OnInit {
     }
   }
   get trucksByPeriod(): UITruck[] {
-    return this.trucks.filter((t) => this.isInSelectedPeriod(t.createdAt || ''));
+    return this.trucks.filter((t) => this.isInSelectedPeriod(t.heureArrivee || ''));
   }
 
   // =========================================================
@@ -469,7 +513,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: '',
       transporteur: '',
       transfert: '',
-      coperative: '',
+      cooperative: '',
     };
     this.showModal = true;
   }
@@ -498,7 +542,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: this.newTruck.immatriculation.trim(),
       transporteur: this.newTruck.transporteur.trim(),
       transfert: this.newTruck.transfert.trim(),
-      coperative: this.newTruck.coperative.trim(),
+      cooperative: this.newTruck.cooperative.trim(),
 
       kor: '',
       th: '',
@@ -594,7 +638,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: t.immatriculation,
       transporteur: t.transporteur,
       transfert: t.transfert || '',
-      coperative: t.coperative || '',
+      cooperative: t.cooperative || '',
     };
     this.showEditModal = true;
   }
@@ -607,7 +651,7 @@ export class UserEntrepot implements OnInit {
     t.immatriculation = this.editTruckData.immatriculation.trim();
     t.transporteur = this.editTruckData.transporteur.trim();
     t.transfert = this.editTruckData.transfert.trim();
-    t.coperative = this.editTruckData.coperative.trim();
+    t.cooperative = this.editTruckData.cooperative.trim();
 
     this.addHistory(t, 'Modification des informations');
 
@@ -616,7 +660,7 @@ export class UserEntrepot implements OnInit {
       immatriculation: t.immatriculation,
       transporteur: t.transporteur,
       transfert: t.transfert,
-      coperative: t.coperative,
+      cooperative: t.cooperative,
       history: t.history,
     };
 
