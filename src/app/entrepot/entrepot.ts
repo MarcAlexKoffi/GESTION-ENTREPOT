@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TruckService, Truck } from '../services/truck.service';
-import { StoredWarehouse } from '../services/warehouse.service';
+import { WarehouseService, StoredWarehouse } from '../services/warehouse.service';
 
 // type TruckStatus = ... (déjà dans TruckService via union string)
 // interface Truck ... (importée)
@@ -40,33 +40,51 @@ export class Entrepot implements OnInit {
   private readonly truckStorageKey = 'trucks';
   // private readonly commentStorageKey = 'truckAdminComments'; // Plus utilisé
 
-  constructor(private route: ActivatedRoute, private truckService: TruckService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private truckService: TruckService,
+    private warehouseService: WarehouseService
+  ) {}
 
   ngOnInit(): void {
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
 
-    let warehouses: StoredWarehouse[] = [];
-    const saved = localStorage.getItem('warehouses');
-    if (saved) {
-      try {
-        warehouses = JSON.parse(saved);
-      } catch {}
-    }
+    // Prefer API: fetch warehouse by id. If API fails, fallback to localStorage/default.
+    this.warehouseService.getWarehouse(idParam).subscribe({
+      next: (w) => {
+        this.entrepot = {
+          id: w.id,
+          nom: w.name,
+          lieu: w.location,
+        };
 
-    if (warehouses.length === 0) {
-      warehouses = [
-        { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes', imageUrl: '' },
-      ];
-    }
+        this.loadTrucks();
+      },
+      error: () => {
+        let warehouses: StoredWarehouse[] = [];
+        const saved = localStorage.getItem('warehouses');
+        if (saved) {
+          try {
+            warehouses = JSON.parse(saved);
+          } catch {}
+        }
 
-    const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
-    this.entrepot = {
-      id: found.id,
-      nom: found.name,
-      lieu: found.location,
-    };
+        if (warehouses.length === 0) {
+          warehouses = [
+            { id: 1, name: 'Entrepôt Lyon Sud', location: 'Corbas, Rhône-Alpes', imageUrl: '' },
+          ];
+        }
 
-    this.loadTrucks();
+        const found = warehouses.find((w) => w.id === idParam) ?? warehouses[0];
+        this.entrepot = {
+          id: found.id,
+          nom: found.name,
+          lieu: found.location,
+        };
+
+        this.loadTrucks();
+      },
+    });
   }
 
   // ================================================================

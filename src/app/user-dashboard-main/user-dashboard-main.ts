@@ -49,6 +49,16 @@ export class UserDashboardMain implements OnInit {
   }
 
   private loadCurrentUser(): void {
+    // Prefer last visited entrepot (when coming from an entrepot page)
+    const last = localStorage.getItem('lastVisitedEntrepot');
+    if (last) {
+      const n = Number(last);
+      if (!Number.isNaN(n)) {
+        this.entrepotId = n;
+        return;
+      }
+    }
+
     const raw = localStorage.getItem('currentUser');
     if (!raw) return;
 

@@ -171,6 +171,8 @@ export class UserEntrepot implements OnInit {
   applyFilters(): void {
     const base = this.getBaseListForTab();
 
+    console.log('[user-entrepot] applyFilters - currentTab=', this.currentTab, 'selectedPeriod=', this.selectedPeriod, 'selectedStatus=', this.selectedStatus, 'baseCount=', base.length);
+
     const search = this.filterSearch.trim().toLowerCase();
     const now = new Date();
 
@@ -222,15 +224,58 @@ export class UserEntrepot implements OnInit {
 
       return true;
     });
+
+    console.log('[user-entrepot] applyFilters - result filteredTrucks.length=', this.filteredTrucks.length);
   }
 
   ngOnInit(): void {
+    console.log('[user-entrepot] ngOnInit - start, entrepot.id =', this.entrepot.id);
     this.loadEntrepot();
-    this.loadTrucks();
+    console.log('[user-entrepot] ngOnInit - called loadEntrepot(), entrepot.id =', this.entrepot.id);
+    console.log('[user-entrepot] ngOnInit - waiting for entrepot to load before trucks');
   }
 
   private refreshView(): void {
     this.loadTrucks();
+  }
+
+  // =========================================================
+  // LOCAL STORAGE FALLBACK (per warehouse)
+  // =========================================================
+  private loadTrucksFromStorage(): void {
+    const raw = localStorage.getItem('trucks');
+    const all: UITruck[] = raw ? JSON.parse(raw) : [];
+    // Keep only trucks for current entrepot (coerce to Number)
+    this.trucks = all
+      .filter((t) => Number(t.entrepotId) === Number(this.entrepot.id))
+      .map((t) => ({ ...t, showMenu: false }));
+
+    this.trucks.forEach((t) => {
+      if (!t.history) t.history = [];
+      if (!t.kor) t.kor = '';
+      if (!t.th) t.th = '';
+      if (t.showMenu === undefined) t.showMenu = false;
+    });
+
+    this.applyFilters();
+  }
+
+  private saveTrucksToStorage(): void {
+    const raw = localStorage.getItem('trucks');
+    let all: UITruck[] = raw ? JSON.parse(raw) : [];
+
+    // Remove trucks belonging to this entrepot and replace with current list
+    all = all.filter((t) => Number(t.entrepotId) !== Number(this.entrepot.id));
+
+    // Save copies without UI-only fields
+    const toSave = this.trucks.map((t) => {
+      const copy: any = { ...t };
+      delete copy.showMenu;
+      return copy;
+    });
+
+    all.push(...toSave);
+    localStorage.setItem('trucks', JSON.stringify(all));
   }
 
   // =========================================================
@@ -239,9 +284,15 @@ export class UserEntrepot implements OnInit {
   loadEntrepot(): void {
     const idParam = Number(this.route.snapshot.paramMap.get('id'));
 
+    console.log('[user-entrepot] loadEntrepot - idParam=', idParam);
     this.warehouseService.getWarehouse(idParam).subscribe({
       next: (w) => {
+        console.log('[user-entrepot] loadEntrepot - API returned', w);
         this.entrepot = { id: w.id, nom: w.name, lieu: w.location };
+        console.log('[user-entrepot] loadEntrepot - this.entrepot now', this.entrepot);
+        // maintenant que l'entrepôt est chargé, charger les camions
+        try { localStorage.setItem('lastVisitedEntrepot', String(this.entrepot.id)); } catch (e) { /* ignore */ }
+        this.loadTrucks();
       },
       error: (err) => {
         console.error('Erreur chargement entrepôt', err);
@@ -253,12 +304,26 @@ export class UserEntrepot implements OnInit {
   // CHARGEMENT CAMIONS
   // =========================================================
   loadTrucks(): void {
+    console.log('[user-entrepot] loadTrucks - requesting trucks for entrepotId=', this.entrepot.id);
     this.truckService.getTrucks(this.entrepot.id).subscribe({
       next: (data) => {
-        this.trucks = data.map((t) => ({ ...t, showMenu: false }));
+        console.log('[user-entrepot] loadTrucks - received', data?.length, 'trucks from API');
+        // Force filter by entrepotId in case backend returns extras
+        const filtered = (data || []).filter((t) => Number(t.entrepotId) === Number(this.entrepot.id));
+        this.trucks = filtered.map((t) => ({ ...t, showMenu: false }));
         this.applyFilters();
+        // persist a local copy per-warehouse
+        try {
+          this.saveTrucksToStorage();
+        } catch (e) {
+          console.warn('Could not save trucks to localStorage', e);
+        }
+        console.log('[user-entrepot] loadTrucks - after applyFilters, filteredTrucks.length=', this.filteredTrucks.length);
       },
-      error: (err) => console.error('Erreur loading trucks', err),
+      error: (err) => {
+        console.error('Erreur loading trucks, falling back to localStorage', err);
+        this.loadTrucksFromStorage();
+      },
     });
   }
 
@@ -446,8 +511,36 @@ export class UserEntrepot implements OnInit {
     console.log('Sending payload:', truckPayload);
 
     this.truckService.createTruck(truckPayload).subscribe({
-      next: () => {
-        this.refreshView();
+      next: (created) => {
+        // Backend may return only { id: ... } — build a full UI truck locally
+        const nowIso = new Date().toISOString();
+        const uiTruck: UITruck = {
+          id: (created && (created as any).id) || Math.floor(Math.random() * -1000000),
+          entrepotId: truckPayload.entrepotId!,
+          immatriculation: (truckPayload.immatriculation as string) || '',
+          transporteur: (truckPayload.transporteur as string) || '',
+          transfert: (truckPayload.transfert as string) || '',
+          coperative: (truckPayload.coperative as string) || '',
+          kor: truckPayload.kor || '',
+          th: truckPayload.th || '',
+          statut: (truckPayload.statut as any) || ('Enregistré' as any),
+          heureArrivee: truckPayload.heureArrivee || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          history: truckPayload.history || [],
+          createdAt: nowIso,
+          showMenu: false,
+        };
+
+        // Insert at top and refresh filters/stats
+        this.trucks = [uiTruck, ...this.trucks];
+        this.applyFilters();
+
+        // Persist locally as well so each entrepot keeps its own list
+        try {
+          this.saveTrucksToStorage();
+        } catch (e) {
+          console.warn('Could not save created truck to localStorage', e);
+        }
+
         this.lastSavedStatutLabel = 'Enregistré';
         this.showSuccessBanner = true;
         setTimeout(() => {
@@ -456,8 +549,34 @@ export class UserEntrepot implements OnInit {
         }, 1200);
       },
       error: (err) => {
-        console.error(err);
-        alert(err.error?.message || 'Erreur création camion');
+        console.error('API createTruck failed, saving locally', err);
+        // Fallback: save locally so this entrepot still sees its trucks
+        const nowIso = new Date().toISOString();
+        const uiTruck: UITruck = {
+          id: Math.floor(Math.random() * -1000000),
+          entrepotId: truckPayload.entrepotId!,
+          immatriculation: (truckPayload.immatriculation as string) || '',
+          transporteur: (truckPayload.transporteur as string) || '',
+          transfert: (truckPayload.transfert as string) || '',
+          coperative: (truckPayload.coperative as string) || '',
+          kor: truckPayload.kor || '',
+          th: truckPayload.th || '',
+          statut: (truckPayload.statut as any) || ('Enregistré' as any),
+          heureArrivee: truckPayload.heureArrivee || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          history: truckPayload.history || [],
+          createdAt: nowIso,
+          showMenu: false,
+        };
+
+        this.trucks = [uiTruck, ...this.trucks];
+        this.applyFilters();
+        try {
+          this.saveTrucksToStorage();
+          alert('Camion enregistré localement (mode hors-ligne)');
+        } catch (e) {
+          console.error('Failed to save truck locally', e);
+          alert(err.error?.message || 'Erreur création camion');
+        }
       },
     });
   }
