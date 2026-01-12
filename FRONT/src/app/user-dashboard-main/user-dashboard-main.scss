@@ -4,7 +4,7 @@
 
 /* FOND IDENTIQUE À LA PAGE ENTREPÔTS */
 :host ::ng-deep .pageMain {
-  background: #f3f6fd !important;
+  background: var(--background-light) !important;
   padding-top: 0 !important;
   min-height: 100vh;
 }

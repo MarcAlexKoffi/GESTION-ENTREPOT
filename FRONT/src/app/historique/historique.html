@@ -64,9 +64,10 @@
                   [(ngModel)]="selectedPeriod"
                   (change)="applyFilters()"
                 >
-                  <option value="all">Toutes</option>
+                  <option value="all">Toutes les périodes</option>
                   <option value="today">Aujourd'hui</option>
                   <option value="7days">7 derniers jours</option>
+                  <option value="30days">30 derniers jours</option>
                 </select>
                 <span class="material-symbols-outlined">arrow_drop_down</span>
               </div>
@@ -130,6 +131,9 @@
 
                     <td>
                       <span [ngClass]="getStatusCssClass(row.statut)">
+                        <span class="material-symbols-outlined status-icon">{{
+                          getStatusIcon(row.statut)
+                        }}</span>
                         {{ row.statut }}
                       </span>
                     </td>
@@ -138,6 +142,7 @@
                         type="button"
                         class="icon-ghost-button"
                         title="Voir le détail du passage"
+                        (click)="openDetailsModal(row)"
                       >
                         <span class="material-symbols-outlined">visibility</span>
                       </button>
@@ -148,6 +153,89 @@
             </table>
           </div>
         </section>
+
+        <!-- HISTORIQUE MODAL (comme dans Entrepôt) -->
+        <div class="modal" *ngIf="showDetailsModal">
+          <div class="modal__backdrop" (click)="closeDetailsModal()"></div>
+          <div class="modal__panel">
+            <div class="truck-modal">
+              <div class="truck-modal-header">
+                <h2 class="truck-modal-title">Historique du camion</h2>
+                <button class="truck-modal-close" (click)="closeDetailsModal()" aria-label="Fermer">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div class="truck-modal-body" *ngIf="selectedRow">
+                <!-- Snapshot summary: conserve les infos principales du camion -->
+                <div class="truck-summary">
+                  <div class="truck-summary-row">
+                    <div class="summary-key">Immatriculation</div>
+                    <div class="summary-value">{{ selectedRow.immatriculation }}</div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">Transporteur</div>
+                    <div class="summary-value">{{ selectedRow.transporteur || '—' }}</div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">Entrepôt</div>
+                    <div class="summary-value">{{ selectedRow.entrepotName }}</div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">Date arrivée</div>
+                    <div class="summary-value">
+                      {{ selectedRow.createdAt | date : 'dd/MM/yyyy' }} •
+                      {{ formatHeure(selectedRow.createdAt) }}
+                    </div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">KOR</div>
+                    <div class="summary-value">{{ selectedRow.kor || '—' }}</div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">TH</div>
+                    <div class="summary-value">{{ selectedRow.th || '—' }}</div>
+                  </div>
+                  <div class="truck-summary-row">
+                    <div class="summary-key">Statut</div>
+                    <div class="summary-value">
+                      <span [ngClass]="getStatusCssClass(selectedRow.statut)">
+                        <span class="material-symbols-outlined status-icon">{{
+                          getStatusIcon(selectedRow.statut)
+                        }}</span>
+                        {{ selectedRow.statut }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="history-section">
+                  <div
+                    *ngIf="!selectedRow.history || selectedRow.history.length === 0"
+                    class="notif-empty"
+                  >
+                    Aucun historique disponible.
+                  </div>
+
+                  <div *ngFor="let h of selectedRow.history" class="history-item">
+                    <div class="history-dot" aria-hidden></div>
+                    <div class="history-content">
+                      <div class="history-event">{{ h.event }}</div>
+                      <div class="history-meta">
+                        <strong>{{ h.by || '—' }}</strong> •
+                        {{ h.date | date : 'dd/MM/yyyy HH:mm' }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="truck-modal-footer">
+                <button class="truck-submit" (click)="closeDetailsModal()">Fermer</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>

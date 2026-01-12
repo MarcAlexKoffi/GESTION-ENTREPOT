@@ -123,13 +123,26 @@ export class UsersManager implements OnInit {
   statusClass(status: string): string {
     switch (status) {
       case 'Actif':
-        return 'active';
+        return 'status-pill status-pill--validated';
       case 'Inactif':
-        return 'inactive';
+        return 'status-pill status-pill--refoule';
       case 'En attente':
-        return 'pending';
+        return 'status-pill status-pill--pending';
       default:
-        return 'active';
+        return 'status-pill status-pill--validated';
+    }
+  }
+
+  statusIcon(status: string): string {
+    switch (status) {
+      case 'Actif':
+        return 'check_circle';
+      case 'Inactif':
+        return 'cancel';
+      case 'En attente':
+        return 'hourglass_empty';
+      default:
+        return 'help_outline';
     }
   }
 

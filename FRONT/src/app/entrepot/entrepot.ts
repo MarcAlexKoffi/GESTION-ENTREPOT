@@ -121,6 +121,96 @@ export class Entrepot implements OnInit {
     return undefined;
   }
 
+  // Choose the most relevant timestamp for period filtering and display
+  private getDateForPeriod(truck: Truck): string {
+    try {
+      // If cancelled / refused variations
+      if (truck.statut === 'Annulé') {
+        const adv = (truck as any).advancedStatus;
+        if (adv === 'REFUSE_RENVOYE') {
+          return (
+            (truck as any).renvoyeAt ||
+            this.findHistoryDate(truck, 'Camion renvoyé par le gérant') ||
+            (truck as any).refusedAt ||
+            this.findHistoryDate(truck, 'Refus administrateur') ||
+            (truck as any).createdAt ||
+            truck.heureArrivee ||
+            ''
+          );
+        }
+
+        if (adv === 'REFUSE_EN_ATTENTE_GERANT') {
+          return (
+            (truck as any).refusedAt ||
+            this.findHistoryDate(truck, 'Refus administrateur') ||
+            (truck as any).createdAt ||
+            truck.heureArrivee ||
+            ''
+          );
+        }
+
+        // fallback for other annulled states
+        return (
+          (truck as any).refusedAt ||
+          (truck as any).renvoyeAt ||
+          this.findHistoryDate(truck, 'Refus administrateur') ||
+          this.findHistoryDate(truck, 'Camion renvoyé par le gérant') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      // Accepted final
+      if ((truck as any).advancedStatus === 'ACCEPTE_FINAL') {
+        return (
+          (truck as any).finalAcceptedAt ||
+          this.findHistoryDate(truck, 'Détails produits renseignés — Camion accepté') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      // Reintegrated (admin reintegration)
+      if ((truck as any).advancedStatus === 'REFUSE_REINTEGRE') {
+        return (
+          (truck as any).reintegratedAt ||
+          this.findHistoryDate(truck, 'Réintégration administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      // Validated (prefer validatedAt or history)
+      if (truck.statut === 'Validé') {
+        return (
+          (truck as any).validatedAt ||
+          this.findHistoryDate(truck, 'Validation administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      // In waiting (prefer analysis send event)
+      if (truck.statut === 'En attente') {
+        return (
+          this.findHistoryDate(truck, 'Analyses envoyées à l’administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      // Default: createdAt or heureArrivee
+      return (truck as any).createdAt || truck.heureArrivee || '';
+    } catch (e) {
+      return (truck as any).createdAt || truck.heureArrivee || '';
+    }
+  }
+
   private isInSelectedPeriod(dateIso: string): boolean {
     if (this.selectedPeriod === 'all') return true;
 
@@ -155,6 +245,17 @@ export class Entrepot implements OnInit {
       }
 
       case 'validated': {
+        // If the truck was reintegrated by admin, prefer the reintegration timestamp
+        if ((t as any).advancedStatus === 'REFUSE_REINTEGRE') {
+          const iso =
+            (t as any).reintegratedAt ||
+            this.findHistoryDate(t, 'Réintégration administrateur') ||
+            this.findHistoryDate(t, 'Validation administrateur') ||
+            t.createdAt ||
+            fallback;
+          return this.formatHourFromIso(iso);
+        }
+
         const iso = this.findHistoryDate(t, 'Validation administrateur') || t.createdAt || fallback;
         return this.formatHourFromIso(iso);
       }
@@ -238,8 +339,7 @@ export class Entrepot implements OnInit {
         if (!haystack.includes(search)) return false;
       }
 
-      // période: prefer full `createdAt` if present, otherwise fall back to `heureArrivee`
-      const dateToUse = (t as any).createdAt || t.heureArrivee || '';
+      const dateToUse = this.getDateForPeriod(t);
       return this.isInSelectedPeriod(dateToUse);
     });
   }
@@ -342,6 +442,38 @@ export class Entrepot implements OnInit {
       error: (err) => alert('Erreur lors du refus'),
     });
   }
+
+  // ================================================================
+  // RÉINTÉGRATION (ADMIN) — remet le camion dans l'état "Validé"
+  // ================================================================
+  reintegrateTruck(): void {
+    if (!this.selectedTruck) return;
+
+    const updates: any = {
+      statut: 'Validé',
+      advancedStatus: 'REFUSE_REINTEGRE',
+      reintegratedAt: new Date().toISOString(),
+      unreadForGerant: true,
+      unreadForAdmin: false,
+      comment: this.adminComment,
+      history: [
+        ...(this.selectedTruck.history || []),
+        {
+          event: 'Réintégration administrateur',
+          by: 'admin',
+          date: new Date().toISOString(),
+        },
+      ],
+    };
+
+    this.truckService.updateTruck(this.selectedTruck.id, updates).subscribe({
+      next: () => {
+        this.refreshView();
+        this.closeDetailsModal();
+      },
+      error: () => alert('Erreur lors de la réintégration'),
+    });
+  }
   // ================================================================
   // HISTORIQUE (ADMIN) – même logique que côté user
   // ================================================================
@@ -359,42 +491,75 @@ export class Entrepot implements OnInit {
   // ================================================================
   printSelectedTruck(): void {
     if (!this.selectedTruck) return;
-
     const truck = this.selectedTruck;
 
-    const content = `
-    <h2>Détails du camion</h2>
-    <p><strong>Immatriculation :</strong> ${truck.immatriculation}</p>
-    <p><strong>Transporteur :</strong> ${truck.transporteur}</p>
-    <p><strong>Coopérative :</strong> ${truck.cooperative ?? '—'}</p>
-    <p><strong>Entrepôt :</strong> ${this.entrepot.nom}</p>
-    <p><strong>Statut :</strong> ${truck.statut}</p>
-    <p><strong>Heure d’arrivée :</strong> ${truck.heureArrivee}</p>
-  `;
+    const heure = this.formatHourFromIso(truck.heureArrivee);
+
+    let bodyHtml = `
+      <h2>Détails du camion</h2>
+      <p><strong>Immatriculation :</strong> ${truck.immatriculation}</p>
+      <p><strong>Transporteur :</strong> ${truck.transporteur}</p>
+      <p><strong>Coopérative :</strong> ${truck.cooperative ?? '—'}</p>
+      <p><strong>Fiche de transfert :</strong> ${truck.transfert ?? '—'}</p>
+      <p><strong>KOR :</strong> ${truck.kor ?? '—'}</p>
+      <p><strong>TH :</strong> ${truck.th ?? '—'}</p>
+      <p><strong>Entrepôt :</strong> ${this.entrepot.nom}</p>
+      <p><strong>Statut :</strong> ${truck.statut}</p>
+      <p><strong>Heure d’arrivée :</strong> ${heure}</p>
+    `;
+
+    if ((truck as any).products) {
+      const p = (truck as any).products;
+      bodyHtml += `
+        <h3>Détails opérateur</h3>
+        <p><strong>Numéro de lot :</strong> ${p.numeroLot || '—'}</p>
+        <p><strong>Nombre de sacs :</strong> ${p.nombreSacsDecharges || '—'}</p>
+        <p><strong>Poids brut :</strong> ${p.poidsBrut || '—'}</p>
+        <p><strong>Poids net :</strong> ${p.poidsNet || '—'}</p>
+      `;
+    }
+
+    if (this.adminComment) {
+      bodyHtml += `
+        <h3>Commentaire administrateur</h3>
+        <p>${this.adminComment}</p>
+      `;
+    }
+
+    // optional: history summary
+    if ((truck as any).history && (truck as any).history.length > 0) {
+      const hist = (truck as any).history
+        .map((h: any) => `<li>${h.event} — ${h.by} — ${new Date(h.date).toLocaleString()}</li>`)
+        .join('');
+      bodyHtml += `<h3>Historique</h3><ul>${hist}</ul>`;
+    }
+
+    const finalHtml = `
+      <html>
+        <head>
+          <title>Impression camion</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111 }
+            h2 { margin-bottom: 12px }
+            h3 { margin-top: 18px; margin-bottom: 8px }
+            p { margin: 6px 0 }
+            ul { padding-left: 18px }
+            .label { font-weight: 600 }
+          </style>
+        </head>
+        <body>
+          ${bodyHtml}
+          <script>
+            window.print();
+            window.onafterprint = () => window.close();
+          </script>
+        </body>
+      </html>
+    `;
 
     const win = window.open('', '_blank', 'width=800,height=600');
     if (!win) return;
-
-    win.document.write(`
-    <html>
-      <head>
-        <title>Impression camion</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; }
-          h2 { margin-bottom: 16px; }
-          p { margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        ${content}
-        <script>
-          window.print();
-          window.onafterprint = () => window.close();
-        </script>
-      </body>
-    </html>
-  `);
-
+    win.document.write(finalHtml);
     win.document.close();
   }
 
@@ -412,6 +577,12 @@ export class Entrepot implements OnInit {
   get nbValidated(): number {
     return this.filteredTrucksBase.filter(
       (t: any) => t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'
+    ).length;
+  }
+
+  get nbReintegres(): number {
+    return this.filteredTrucksBase.filter(
+      (t: any) => t.statut === 'Validé' && t.advancedStatus === 'REFUSE_REINTEGRE'
     ).length;
   }
 
@@ -440,6 +611,113 @@ export class Entrepot implements OnInit {
 
   isRefused(truck: Truck): boolean {
     return truck.statut === 'Annulé';
+  }
+
+  getAdvancedStatusLabel(truck: Truck): string {
+    const s = (truck as any).advancedStatus;
+    if (!s) return '—';
+
+    switch (s) {
+      case 'ACCEPTE_FINAL':
+        return 'Accepté définitivement';
+      case 'REFUSE_EN_ATTENTE_GERANT':
+        return 'Refus — en attente gérant';
+      case 'REFUSE_RENVOYE':
+        return 'Renvoyé';
+      case 'REFUSE_REINTEGRE':
+        return 'Réintégré';
+      default:
+        return String(s);
+    }
+  }
+
+  getAdvancedStatusClass(truck: Truck): string {
+    const s = (truck as any).advancedStatus;
+    if (!s) return '';
+    switch (s) {
+      case 'ACCEPTE_FINAL':
+        return 'status-pill status-pill--accepted-final';
+      case 'REFUSE_EN_ATTENTE_GERANT':
+        return 'status-pill status-pill--pending';
+      case 'REFUSE_RENVOYE':
+        return 'status-pill status-pill--renvoye';
+      case 'REFUSE_REINTEGRE':
+        return 'status-pill status-pill--reintegre';
+      default:
+        return 'status-pill';
+    }
+  }
+
+  getAdvancedStatusIcon(truck: Truck): string {
+    const s = (truck as any).advancedStatus;
+    switch (s) {
+      case 'ACCEPTE_FINAL':
+        return 'assignment_turned_in';
+      case 'REFUSE_EN_ATTENTE_GERANT':
+        return 'pending';
+      case 'REFUSE_RENVOYE':
+        return 'reply';
+      case 'REFUSE_REINTEGRE':
+        return 'replay';
+      default:
+        return 'help_outline';
+    }
+  }
+
+  // Unified helpers for the simple `statut` column (label / class / icon)
+  getStatusLabel(truck: Truck): string {
+    const s = truck.statut;
+    if (!s) return '—';
+
+    switch (s) {
+      case 'Enregistré':
+        return 'Enregistré';
+      case 'En attente':
+        return 'En attente';
+      case 'Validé':
+        return 'Validé';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'Refoulé';
+      default:
+        return String(s);
+    }
+  }
+
+  getStatusClass(truck: Truck): string {
+    const s = truck.statut;
+    if (!s) return '';
+
+    switch (s) {
+      case 'Enregistré':
+        return 'status-pill status-pill--enregistre';
+      case 'En attente':
+        return 'status-pill status-pill--pending';
+      case 'Validé':
+        return 'status-pill status-pill--validated';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'status-pill status-pill--refoule';
+      default:
+        return 'status-pill';
+    }
+  }
+
+  getStatusIcon(truck: Truck): string {
+    const s = truck.statut;
+    switch (s) {
+      case 'Enregistré':
+        return 'save_as';
+      case 'En attente':
+        return 'hourglass_empty';
+      case 'Validé':
+        return 'check_circle';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'cancel';
+      default:
+        return 'help_outline';
+    }
   }
 
   togglePeriodDropdown(): void {

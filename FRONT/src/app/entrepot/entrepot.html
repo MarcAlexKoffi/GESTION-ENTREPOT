@@ -31,6 +31,10 @@
             <p class="stat-value">{{ nbValidated }}</p>
           </article>
           <article class="stat-card">
+            <p class="stat-label">Réintégrés</p>
+            <p class="stat-value">{{ nbReintegres }}</p>
+          </article>
+          <article class="stat-card">
             <p class="stat-label">Acceptés</p>
             <p class="stat-value">{{ nbAccepted }}</p>
           </article>
@@ -160,6 +164,7 @@
                   <th>Transporteur</th>
                   <th>Heure</th>
                   <th>Statut</th>
+                  <th>Statut avancé</th>
                   <th class="cell-actions">Actions</th>
                 </tr>
               </thead>
@@ -181,32 +186,20 @@
                   <td class="cell-muted">{{ t.transporteur }}</td>
                   <td class="cell-muted">{{ getHourForCurrentTab(t) }}</td>
                   <td class="cell-status">
-                    <span
-                      *ngIf="t.statut === 'En attente'"
-                      class="status-pill status-pill--pending"
-                    >
-                      En attente de validation
+                    <span [ngClass]="getStatusClass(t)">
+                      <span class="material-symbols-outlined status-icon" aria-hidden="true">{{
+                        getStatusIcon(t)
+                      }}</span>
+                      <span class="status-text">{{ getStatusLabel(t) }}</span>
                     </span>
+                  </td>
 
-                    <span
-                      *ngIf="t.statut === 'Validé' && t.advancedStatus !== 'ACCEPTE_FINAL'"
-                      class="status-pill status-pill--active"
-                    >
-                      Validé
-                    </span>
-                    <span
-                      *ngIf="t.statut === 'Annulé' && t.advancedStatus !== 'REFUSE_RENVOYE'"
-                      class="status-pill status-pill--cancelled"
-                    >
-                      Refoulé
-                    </span>
-
-                    <!-- ✅ ACCEPTÉ FINAL -->
-                    <span
-                      *ngIf="t.advancedStatus === 'ACCEPTE_FINAL'"
-                      class="status-pill status-pill--active"
-                    >
-                      Accepté
+                  <td class="cell-muted">
+                    <span [ngClass]="getAdvancedStatusClass(t)">
+                      <span class="material-symbols-outlined status-icon">{{
+                        getAdvancedStatusIcon(t)
+                      }}</span>
+                      <span class="adv-label">{{ getAdvancedStatusLabel(t) }}</span>
                     </span>
                   </td>
 
@@ -229,7 +222,9 @@
       <!-- HEADER -->
       <div class="truck-modal-header">
         <h2>Détails du camion</h2>
-        <button class="close-btn" (click)="closeDetailsModal()">✕</button>
+        <button class="truck-modal-close" (click)="closeDetailsModal()" aria-label="Fermer">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
 
       <!-- BODY -->
@@ -264,6 +259,33 @@
           <input class="truck-input" [value]="selectedTruck.th || '—'" disabled />
         </div>
 
+        <!-- PRODUCT / OPERATOR-ENTERED DETAILS -->
+        <div *ngIf="selectedTruck && selectedTruck.products">
+          <div class="field">
+            <label>Numéro de lot</label>
+            <input class="truck-input" [value]="selectedTruck.products.numeroLot || '—'" disabled />
+          </div>
+
+          <div class="field">
+            <label>Nombre de sacs</label>
+            <input
+              class="truck-input"
+              [value]="selectedTruck.products.nombreSacsDecharges || '—'"
+              disabled
+            />
+          </div>
+
+          <div class="field">
+            <label>Poids brut</label>
+            <input class="truck-input" [value]="selectedTruck.products.poidsBrut || '—'" disabled />
+          </div>
+
+          <div class="field">
+            <label>Poids net</label>
+            <input class="truck-input" [value]="selectedTruck.products.poidsNet || '—'" disabled />
+          </div>
+        </div>
+
         <div class="field">
           <label>Heure d’arrivée</label>
           <input
@@ -293,17 +315,17 @@
         </ng-container>
 
         <!-- VALIDÉ -->
-        <ng-container *ngIf="isValidatedOnly(selectedTruck!)">
+        <!-- <ng-container *ngIf="isValidatedOnly(selectedTruck!)">
           <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
             Voir historique
           </button>
-        </ng-container>
+        </ng-container> -->
 
         <!-- ACCEPTÉ -->
         <ng-container *ngIf="isAcceptedFinal(selectedTruck!)">
-          <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
+          <!-- <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
             Voir historique
-          </button>
+          </button> -->
           <button class="truck-submit" (click)="printSelectedTruck()">Imprimer</button>
         </ng-container>
 
@@ -312,11 +334,14 @@
           <button class="truck-submit" (click)="openHistoryModal(selectedTruck!)">
             Voir historique
           </button>
+          <button class="truck-submit success" (click)="reintegrateTruck()">
+            <span class="material-symbols-outlined">restore</span>
+            &nbsp;Réintégrer
+          </button>
         </ng-container>
       </div>
     </div>
   </div>
-
   <!-- ============================
      MODALE HISTORIQUE CAMION
      ============================ -->
@@ -324,7 +349,9 @@
     <div class="truck-modal">
       <div class="truck-modal-header">
         <h2>Historique du camion</h2>
-        <button class="close-btn" (click)="closeHistoryModal()">✕</button>
+        <button class="truck-modal-close" (click)="closeHistoryModal()" aria-label="Fermer">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
 
       <div class="truck-modal-body" *ngIf="historyTruck">

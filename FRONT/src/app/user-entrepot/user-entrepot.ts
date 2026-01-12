@@ -488,9 +488,94 @@ export class UserEntrepot implements OnInit {
   }
   get trucksByPeriod(): UITruck[] {
     // Prefer `createdAt` when available (ISO), otherwise fall back to `heureArrivee` (time-only)
-    return this.trucks.filter((t) =>
-      this.isInSelectedPeriod((t as any).createdAt || t.heureArrivee || '')
-    );
+    // Use a helper to pick the most relevant timestamp depending on recent actions (refus, renvoi, réintégration, acceptation...)
+    return this.trucks.filter((t) => {
+      const dateToUse = this.getDateForPeriod(t);
+      return this.isInSelectedPeriod(dateToUse);
+    });
+  }
+
+  // Choose the most relevant timestamp for period filtering and display (user-side)
+  private getDateForPeriod(truck: UITruck): string {
+    try {
+      if (truck.statut === 'Annulé') {
+        const adv = (truck as any).advancedStatus;
+        if (adv === 'REFUSE_RENVOYE') {
+          return (
+            (truck as any).renvoyeAt ||
+            this.findHistoryDate(truck, 'Camion renvoyé par le gérant') ||
+            (truck as any).refusedAt ||
+            this.findHistoryDate(truck, 'Refus administrateur') ||
+            (truck as any).createdAt ||
+            truck.heureArrivee ||
+            ''
+          );
+        }
+
+        if (adv === 'REFUSE_EN_ATTENTE_GERANT') {
+          return (
+            (truck as any).refusedAt ||
+            this.findHistoryDate(truck, 'Refus administrateur') ||
+            (truck as any).createdAt ||
+            truck.heureArrivee ||
+            ''
+          );
+        }
+
+        return (
+          (truck as any).refusedAt ||
+          (truck as any).renvoyeAt ||
+          this.findHistoryDate(truck, 'Refus administrateur') ||
+          this.findHistoryDate(truck, 'Camion renvoyé par le gérant') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      if ((truck as any).advancedStatus === 'ACCEPTE_FINAL') {
+        return (
+          (truck as any).finalAcceptedAt ||
+          this.findHistoryDate(truck, 'Détails produits renseignés — Camion accepté') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      if ((truck as any).advancedStatus === 'REFUSE_REINTEGRE') {
+        return (
+          (truck as any).reintegratedAt ||
+          this.findHistoryDate(truck, 'Réintégration administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      if (truck.statut === 'Validé') {
+        return (
+          (truck as any).validatedAt ||
+          this.findHistoryDate(truck, 'Validation administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      if (truck.statut === 'En attente') {
+        return (
+          this.findHistoryDate(truck, 'Analyses envoyées à l’administrateur') ||
+          (truck as any).createdAt ||
+          truck.heureArrivee ||
+          ''
+        );
+      }
+
+      return (truck as any).createdAt || truck.heureArrivee || '';
+    } catch (e) {
+      return (truck as any).createdAt || truck.heureArrivee || '';
+    }
   }
 
   // =========================================================
@@ -532,12 +617,21 @@ export class UserEntrepot implements OnInit {
       }
 
       case 'valides': {
+        // If the truck was reintegrated by admin, prefer the reintegration timestamp
+        if ((t as any).advancedStatus === 'REFUSE_REINTEGRE') {
+          const iso =
+            (t as any).reintegratedAt ||
+            this.findHistoryDate(t, 'Réintégration administrateur') ||
+            (t as any).validatedAt ||
+            this.findHistoryDate(t, 'Validation administrateur') ||
+            t.createdAt ||
+            fallback;
+          return this.formatHourFromIso(iso);
+        }
+
         const iso =
           // si tu remplis un jour validatedAt, il sera prioritaire
-          (t as any).validatedAt ||
-          this.findHistoryDate(t, 'Validation administrateur') ||
-          t.createdAt ||
-          fallback;
+          (t as any).validatedAt || this.findHistoryDate(t, 'Validation administrateur') || t.createdAt || fallback;
         return this.formatHourFromIso(iso);
       }
 
@@ -963,4 +1057,130 @@ export class UserEntrepot implements OnInit {
   get nbAcceptesByPeriod(): number {
     return this.trucksByPeriod.filter((t) => t.advancedStatus === 'ACCEPTE_FINAL').length;
   }
+
+  getAdvancedStatusLabel(t: UITruck): string {
+    const sRaw = (t as any).advancedStatus;
+    const s = String(sRaw ?? '').trim();
+    if (!s) return '—';
+
+    const map: Record<string, string> = {
+      ACCEPTE_FINAL: 'Accepté définitivement',
+      REFUSE_EN_ATTENTE_GERANT: 'En attente du gérant',
+      REFUSE_RENVOYE: 'Renvoyé',
+      REFUSE_REINTEGRE: 'Réintégré',
+    };
+
+    if (map[s]) return map[s];
+
+    // Fallback: make the code human-readable (underscores -> spaces, Title Case)
+    return s
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+  }
+
+  getAdvancedStatusClass(t: UITruck): string {
+    const sRaw = (t as any).advancedStatus;
+    const s = String(sRaw ?? '').trim();
+    if (!s) return 'adv-badge--unknown';
+
+    // explicit known mappings
+    const map: Record<string, string> = {
+      ACCEPTE_FINAL: 'adv-badge--accepted',
+      REFUSE_EN_ATTENTE_GERANT: 'adv-badge--refused-wait',
+      REFUSE_RENVOYE: 'adv-badge--renvoye',
+      REFUSE_REINTEGRE: 'adv-badge--reintegre',
+    };
+    if (map[s]) return map[s];
+
+    // heuristic fallback based on keywords
+    const upper = s.toUpperCase();
+    if (upper.includes('ACCEP') || upper.includes('ACCEPT')) return 'adv-badge--accepted';
+    if (upper.includes('RENVOY') || upper.includes('RENVOYE')) return 'adv-badge--renvoye';
+    if (upper.includes('REINT') || upper.includes('REINTEG')) return 'adv-badge--reintegre';
+    if (upper.includes('ATTENT') || upper.includes('WAIT')) return 'adv-badge--refused-wait';
+
+    return 'adv-badge--unknown';
+  }
+
+  getAdvancedStatusIcon(t: UITruck): string {
+    const sRaw = (t as any).advancedStatus;
+    const s = String(sRaw ?? '').trim();
+
+    const map: Record<string, string> = {
+      ACCEPTE_FINAL: 'task_alt',
+      REFUSE_EN_ATTENTE_GERANT: 'hourglass_top',
+      REFUSE_RENVOYE: 'send_to_mobile',
+      REFUSE_REINTEGRE: 'autorenew',
+    };
+    if (map[s]) return map[s];
+
+    // heuristics for unknown values -> pick a reasonable icon
+    const upper = s.toUpperCase();
+    if (!s) return 'help_outline';
+    if (upper.includes('ACCEP') || upper.includes('ACCEPT')) return 'task_alt';
+    if (upper.includes('RENVOY') || upper.includes('RENVOYE') || upper.includes('RENV')) return 'send_to_mobile';
+    if (upper.includes('REINT') || upper.includes('REINTEG')) return 'autorenew';
+    if (upper.includes('ATTENT') || upper.includes('WAIT')) return 'hourglass_top';
+    if (upper.includes('REFUS') || upper.includes('REFUSE')) return 'cancel';
+
+    return 'help_outline';
+  }
+
+  // Unified helpers for the simple `statut` column (label / class / icon)
+  getStatusLabel(t: UITruck): string {
+    const s = t.statut;
+    if (!s) return '—';
+
+    switch (s) {
+      case 'Enregistré':
+        return 'Enregistré';
+      case 'En attente':
+        return 'En attente';
+      case 'Validé':
+        return 'Validé';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'Refoulé';
+      default:
+        return String(s);
+    }
+  }
+
+  getStatusClass(t: UITruck): string {
+    const s = t.statut;
+    if (!s) return 'status-badge--unknown';
+
+    switch (s) {
+      case 'Enregistré':
+        return 'status-badge--enregistre status-pill--enregistre';
+      case 'En attente':
+        return 'status-badge--pending status-pill--pending';
+      case 'Validé':
+        return 'status-badge--validated status-pill--validated';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'status-badge--cancelled status-pill--cancelled';
+      default:
+        return 'status-badge--unknown';
+    }
+  }
+
+  getStatusIcon(t: UITruck): string {
+    const s = t.statut;
+    switch (s) {
+      case 'Enregistré':
+        return 'post_add';
+      case 'En attente':
+        return 'schedule';
+      case 'Validé':
+        return 'check_circle';
+      case 'Refoulé':
+      case 'Annulé':
+        return 'cancel';
+      default:
+        return 'help_outline';
+    }
+  }
 }
+

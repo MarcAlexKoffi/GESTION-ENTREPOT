@@ -123,6 +123,9 @@
                     <!-- Statut -->
                     <td>
                       <span [ngClass]="getStatusCssClass(row.statut)">
+                        <span class="material-symbols-outlined status-icon">{{
+                          getStatusIcon(row.statut)
+                        }}</span>
                         {{ row.statut }}
                       </span>
                     </td>

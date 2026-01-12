@@ -284,16 +284,30 @@ export class UserHistorique implements OnInit {
   getStatusCssClass(statut: TruckStatus): string {
     switch (statut) {
       case 'Déchargé':
-        return 'status-pill status-pill--success';
-
+        return 'status-pill status-pill--validated';
       case 'En attente':
-        return 'status-pill status-pill--warning';
+        return 'status-pill status-pill--pending';
       case 'Annulé':
-        return 'status-pill status-pill--danger';
+        return 'status-pill status-pill--refoule';
       case 'En cours de déchargement':
-        return 'status-pill status-pill--info';
+        return 'status-pill status-pill--enregistre';
       default:
         return 'status-pill';
+    }
+  }
+
+  getStatusIcon(statut: TruckStatus): string {
+    switch (statut) {
+      case 'Déchargé':
+        return 'check_circle';
+      case 'En attente':
+        return 'hourglass_empty';
+      case 'Annulé':
+        return 'cancel';
+      case 'En cours de déchargement':
+        return 'sync';
+      default:
+        return 'help_outline';
     }
   }
 

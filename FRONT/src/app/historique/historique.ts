@@ -12,11 +12,13 @@ interface TruckHistoryRow {
   immatriculation: string;
   transporteur: string;
   kor: string;
+  th?: string;
   heureArrivee: string;
   debutDechargement: string;
   finDechargement: string;
   statut: TruckStatus;
   createdAt: string; // utile pour le filtre par période
+  history?: Array<{ event: string; by?: string; date?: string }>;
 }
 
 @Component({
@@ -37,10 +39,14 @@ export class Historique implements OnInit {
   searchTerm = '';
   selectedWarehouseId: number | 'all' = 'all';
   selectedStatus: TruckStatus | 'all' = 'all';
-  selectedPeriod: 'today' | '7days' | 'all' = 'all';
+  selectedPeriod: 'today' | '7days' | '30days' | 'all' = 'all';
 
   // options pour la liste des entrepôts
   warehousesOptions: StoredWarehouse[] = [];
+
+  // Details modal state
+  showDetailsModal = false;
+  selectedRow: TruckHistoryRow | null = null;
 
   constructor(private truckService: TruckService, private warehouseService: WarehouseService) {}
 
@@ -76,6 +82,8 @@ export class Historique implements OnInit {
             immatriculation: t.immatriculation,
             transporteur: t.transporteur,
             kor: t.kor || '',
+            // TH (élément d'analyse) may be named differently server-side; try common candidates
+            th: (t as any).th || (t as any).thElement || (t as any).TH || '',
             heureArrivee: t.heureArrivee,
             // TODO: Checker si debut/finDechargement existent dans Truck
             // Pour l'instant on met '-' car ce n'est pas explicite dans l'interface Truck
@@ -83,6 +91,7 @@ export class Historique implements OnInit {
             finDechargement: '-',
             statut: t.statut,
             createdAt: t.createdAt || new Date().toISOString(),
+            history: t.history || [],
           };
         });
 
@@ -151,11 +160,12 @@ export class Historique implements OnInit {
           }
         }
 
-        if (this.selectedPeriod === '7days') {
-          const sevenDaysAgo = new Date(now);
-          sevenDaysAgo.setDate(now.getDate() - 7);
+        if (this.selectedPeriod === '7days' || this.selectedPeriod === '30days') {
+          const days = this.selectedPeriod === '7days' ? 7 : 30;
+          const cutoff = new Date(now);
+          cutoff.setDate(now.getDate() - days);
 
-          if (created.getTime() < sevenDaysAgo.getTime()) {
+          if (created.getTime() < cutoff.getTime()) {
             return false;
           }
         }
@@ -197,40 +207,52 @@ export class Historique implements OnInit {
       return;
     }
 
-    // En-têtes CSV (ordre volontairement clair pour un export métier)
+    // Export exactly 6 columns to match spec
     const headers = [
       'Entrepôt',
       'Immatriculation',
       'Transporteur',
+      'Date Arrivée Camion',
+      "Heure d'enregistrement",
       'Statut',
-      'Heure arrivée',
-      'Heure enregistrement',
-      'Début déchargement',
-      'Fin déchargement',
     ];
 
     const rows = this.filteredRows.map((row) => {
       const entrepot = this.warehousesOptions.find((w) => w.id === row.entrepotId);
 
+      const created = row.createdAt ? new Date(row.createdAt) : null;
+      const dateArrive =
+        created && !isNaN(created.getTime())
+          ? `${String(created.getDate()).padStart(2, '0')}/${String(
+              created.getMonth() + 1
+            ).padStart(2, '0')}/${created.getFullYear()}`
+          : '';
+      const heureEnreg =
+        created && !isNaN(created.getTime())
+          ? `${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(
+              2,
+              '0'
+            )}`
+          : '';
+
+      // For the Excel export we include exactly 6 columns: entrepot, immat, transporteur, date, heure enreg, statut
       return [
         entrepot ? entrepot.name : '',
         row.immatriculation,
         row.transporteur,
+        dateArrive,
+        heureEnreg,
         row.statut,
-        row.heureArrivee || '',
-        row.createdAt ? this.formatDateTime(row.createdAt) : '',
-        row.debutDechargement ? this.formatDateTime(row.debutDechargement) : '',
-        row.finDechargement ? this.formatDateTime(row.finDechargement) : '',
       ];
     });
 
-    // Construction du CSV
-    const csvContent = [
+    // Préfixer BOM pour Excel et utiliser ; comme séparateur
+    const csvBody = [
       headers.join(';'),
       ...rows.map((r) => r.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';')),
     ].join('\n');
+    const csvContent = '\uFEFF' + csvBody;
 
-    // Création du fichier téléchargeable
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
@@ -242,20 +264,70 @@ export class Historique implements OnInit {
     URL.revokeObjectURL(url);
   }
 
+  openDetailsModal(row: TruckHistoryRow): void {
+    // Deep clone the row so the modal shows a snapshot (won't change
+    // if the underlying data/table is updated while the modal is open)
+    try {
+      this.selectedRow = JSON.parse(JSON.stringify(row));
+    } catch (e) {
+      // Fallback to shallow copy if JSON clone fails for any reason
+      this.selectedRow = Object.assign({}, row);
+    }
+
+    // Ensure history is sorted newest-first when present
+    if (this.selectedRow && Array.isArray(this.selectedRow.history)) {
+      this.selectedRow.history.sort((a, b) => {
+        const da = a && a.date ? new Date(a.date).getTime() : 0;
+        const db = b && b.date ? new Date(b.date).getTime() : 0;
+        return db - da;
+      });
+    }
+
+    this.showDetailsModal = true;
+  }
+
+  closeDetailsModal(): void {
+    this.showDetailsModal = false;
+    this.selectedRow = null;
+  }
+
   // Helpers pour les labels dans le template
   getStatusCssClass(statut: string): string {
     switch (statut) {
       case 'Déchargé':
-        return 'status-pill status-pill--success';
-
+        return 'status-pill status-pill--validated';
       case 'En attente':
-        return 'status-pill status-pill--warning';
+        return 'status-pill status-pill--pending';
       case 'Annulé':
-        return 'status-pill status-pill--danger';
+      case 'Refoulé':
+        return 'status-pill status-pill--refoule';
       case 'En cours de déchargement':
-        return 'status-pill status-pill--info';
+        return 'status-pill status-pill--enregistre';
+      case 'Enregistré':
+        return 'status-pill status-pill--enregistre';
+      case 'Validé':
+        return 'status-pill status-pill--validated';
       default:
         return 'status-pill';
+    }
+  }
+
+  getStatusIcon(statut: string): string {
+    switch (statut) {
+      case 'Déchargé':
+      case 'Validé':
+        return 'check_circle';
+      case 'En attente':
+        return 'hourglass_empty';
+      case 'Annulé':
+      case 'Refoulé':
+        return 'cancel';
+      case 'En cours de déchargement':
+        return 'sync';
+      case 'Enregistré':
+        return 'save_as';
+      default:
+        return 'help_outline';
     }
   }
 
