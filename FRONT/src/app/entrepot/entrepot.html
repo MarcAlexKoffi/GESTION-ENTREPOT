@@ -176,7 +176,6 @@
                     Aucun camion pour ce statut pour le moment.
                   </td>
                 </tr>
-
                 <!-- LIGNES -->
                 <tr *ngFor="let t of filteredTrucks">
                   <td class="cell-main">
@@ -202,7 +201,6 @@
                       <span class="adv-label">{{ getAdvancedStatusLabel(t) }}</span>
                     </span>
                   </td>
-
                   <td class="cell-actions">
                     <button type="button" class="link-action" (click)="openDetailsModal(t)">
                       Voir plus
